@@ -5,6 +5,9 @@ use tokio::net::TcpStream;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 use futures_lite::stream::StreamExt;
+use async_trait::async_trait;
+
+use crate::error::custom_error::RssqlError;
 
 pub struct QueryBuilder {
     table: &'static str,
@@ -67,7 +70,7 @@ impl QueryBuilder {
         self
     }
 
-    pub async fn find_all(&mut self, mut conn: tiberius::Client<Compat<TcpStream>>) {
+    pub async fn find_all(&mut self, mut conn: tiberius::Client<Compat<TcpStream>>) -> Result<(), RssqlError> {
         let sql = self.fields.iter()
             .map(|(table, fields)|
                 fields.iter().map(|field| format!(r#"{}.{} as "{}.{}""#, table, field, table, field))
@@ -78,51 +81,35 @@ impl QueryBuilder {
         // let mut stream = conn.simple_query(r#"SELECT ship_to_id as "CUSTOMER_LIST.ship_to_id", ship_to as "CUSTOMER_LIST.ship_to",
         // volume as "CUSTOMER_LIST.volume", container as "CUSTOMER_LIST.container" FROM CUSTOMER_LIST"#).await.unwrap();
         dbg!(format!("SELECT {} FROM {} {} ", sql, self.table, self.join));
-        let mut stream = conn.simple_query(format!("SELECT {} FROM {} {} ", sql, self.table, self.join)).await.unwrap();
+        let mut stream = conn.simple_query(format!("SELECT {} FROM {} {} ", sql, self.table, self.join)).await?;
         while let Some(item) = stream.try_next().await.unwrap() {
             match item {
                 QueryItem::Row(row) => {
                     dbg!(&row);
-                    self.tables.iter().for_each(|table|{
+                    self.tables.iter().for_each(|table| {
                         let vec = self.query_result.get_mut(table).unwrap().push(
-                            (self.from_row_funcs.get(&table.to_string()).unwrap())(&row).into() );
+                            (self.from_row_funcs.get(&table.to_string()).unwrap())(&row).into());
                     });
                     // ret.push((self.from_row_funcs.get(self.table).unwrap())(&row).into());
                 }
                 QueryItem::Metadata(_) => {}
             }
         }
+        Ok(())
     }
 
-    pub fn get<T:RusqlMarker>(&mut self) -> Vec<Value> {
+    pub fn get<T: RusqlMarker>(&mut self) -> Vec<Value> {
         self.query_result.remove(T::table_name()).unwrap()
     }
 
-
-    pub async fn get_client() -> Client<Compat<TcpStream>> {
-        let mut config = Config::new();
-        config.host("sgpvm00529.apac.bosch.com");
-        // config.port(8080);
-        config.authentication(AuthMethod::sql_server("biadmin", "biadmin"));
-        config.trust_cert(); // on production, it is not a good idea to do this
-        config.database("DB_Don_BIDATA_SQL");
-        let tcp = TcpStream::connect(config.get_addr()).await.unwrap();
-        tcp.set_nodelay(true).unwrap();
-        let mut client = Client::connect(config, tcp.compat_write()).await.unwrap();
-        client
-    }
-
-    pub async fn find_all_test(&mut self) {
-        let client = QueryBuilder::get_client().await;
-        self.find_all(client).await
-    }
 }
 
-
+#[async_trait(?Send)]
 pub trait RusqlMarker: Sized {
     fn table_name() -> &'static str;
     fn fields() -> Vec<&'static str>;
-    fn from_row(row:&tiberius::Row) -> Map<String, Value>;
+    fn from_row(row: &tiberius::Row) -> Map<String, Value>;
+    async fn insert_many(iter: impl Iterator<Item = Self>, conn: Client<Compat<TcpStream>>) -> Result<u64, RssqlError>;
 }
 
 struct TableInfo<RusqlMarker> {
