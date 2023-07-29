@@ -4,7 +4,11 @@ use std::fmt;
 use std::fmt::Formatter;
 
 use anyhow;
+#[cfg(feature = "polars")]
+use polars::error::PolarsError;
 use serde;
+
+pub type RssqlResult<T> = Result<T, RssqlError>;
 
 #[derive(Debug)]
 pub enum RssqlError {
@@ -32,6 +36,12 @@ impl fmt::Display for RssqlError {
         write!(f, "{}", a)
     }
 }
+
+// impl From<PolarsError> for RssqlError {
+//     fn from(value: PolarsError) -> Self {
+//         todo!()
+//     }
+// }
 
 impl<E> From<E> for RssqlError
 where

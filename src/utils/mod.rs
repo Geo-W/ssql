@@ -11,6 +11,6 @@ pub async fn get_client(username:&str, password:&str, host:&str, database:&str) 
     config.database(database);
     let tcp = TcpStream::connect(config.get_addr()).await.unwrap();
     tcp.set_nodelay(true).unwrap();
-    let mut client = Client::connect(config, tcp.compat_write()).await.unwrap();
+    let client = Client::connect(config, tcp.compat_write()).await.unwrap();
     client
 }
