@@ -3,7 +3,6 @@
 use std::fmt;
 use std::fmt::Formatter;
 
-use anyhow;
 #[cfg(feature = "polars")]
 use polars::error::PolarsError;
 use serde;

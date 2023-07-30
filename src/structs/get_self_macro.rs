@@ -5,7 +5,7 @@ macro_rules! impl_get_self {
         pub async fn $func_name<$($T),*>(
             &mut self,
             conn: &mut tiberius::Client<Compat<TcpStream>>,
-        ) -> Result<($(Vec<$T>),*), RssqlError>
+        ) -> RssqlResult<($(Vec<$T>),*)>
         where
             $($T: RusqlMarker),*
         {
