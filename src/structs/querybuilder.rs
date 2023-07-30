@@ -110,7 +110,7 @@ impl QueryBuilder {
 
 
     #[cfg(feature = "polars")]
-    pub async fn get_dataframe<A>(&mut self, conn: &mut tiberius::Client<Compat<TcpStream>>) -> Result<(DataFrame), RssqlError>
+    pub async fn get_dataframe<A>(&mut self, conn: &mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<(DataFrame)>
         where A: RusqlMarker + PolarsHelper + std::fmt::Debug
     {
         let vec1 = self.get_self(conn).await?;
@@ -118,7 +118,7 @@ impl QueryBuilder {
     }
 
     #[cfg(feature = "polars")]
-    pub async fn get_dataframe_2<A, B>(&mut self, conn: &mut tiberius::Client<Compat<TcpStream>>) -> Result<(DataFrame,DataFrame), RssqlError>
+    pub async fn get_dataframe_2<A, B>(&mut self, conn: &mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<(DataFrame,DataFrame)>
         where A: RusqlMarker + PolarsHelper + std::fmt::Debug,
               B: RusqlMarker + PolarsHelper + std::fmt::Debug
     {

@@ -12,7 +12,7 @@ pub use serde_json::{Map, Value};
 pub use async_trait::async_trait;
 
 
-pub use crate::error::custom_error::RssqlError;
+pub use crate::error::custom_error::RssqlResult;
 
 
 pub use std::sync::Arc;

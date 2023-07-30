@@ -108,12 +108,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
     // for getting dataframe
     let builder_new_vecs = fields.iter().map(|f| {
         let field = f.clone().ident.unwrap();
-        // let mn = field.to_string();
         let ty = &f.ty;
-        // let ty = match extract_type_from_option(ty) {
-        //     Some(value) => value,
-        //     None => ty
-        // };
         quote!{
             let mut #field : Vec<#ty> = vec![]
         }
@@ -262,7 +257,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                 }
             }
 
-            async fn insert_many(iter: impl Iterator<Item = #struct_name> , mut conn: Client<Compat<TcpStream>>) -> Result<u64, RssqlError>
+            async fn insert_many(iter: impl Iterator<Item = #struct_name> , mut conn: Client<Compat<TcpStream>>) -> RssqlResult<u64>
             // where I:  impl Iterator<Item = #struct_name>
             {
                 let mut req = conn.bulk_insert(#table_name).await?;

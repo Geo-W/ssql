@@ -12,7 +12,10 @@ pub type RssqlResult<T> = Result<T, RssqlError>;
 
 #[derive(Debug)]
 pub enum RssqlError {
-    SqlServerError(anyhow::Error),
+    SqlServerError(tiberius::error::Error),
+    #[cfg(feature = "polars")]
+    PolarsError(PolarsError),
+    RsRunningError(&'static str),
     CustomError(CustomError),
     SentError(SentError),
 }
@@ -32,23 +35,30 @@ impl fmt::Display for RssqlError {
             RssqlError::SqlServerError(inner) => inner.to_string(),
             RssqlError::CustomError(_) => "Internal Server Error".to_owned(),
             RssqlError::SentError(inner) => inner.to_string(),
+            #[cfg(feature = "polars")]
+            RssqlError::PolarsError(inner) => {inner.to_string()}
+            RssqlError::RsRunningError(inner) => {inner.to_string()}
         };
         write!(f, "{}", a)
     }
 }
 
-// impl From<PolarsError> for RssqlError {
-//     fn from(value: PolarsError) -> Self {
-//         todo!()
-//     }
-// }
+#[cfg(feature = "polars")]
+impl From<PolarsError> for RssqlError {
+    fn from(value: PolarsError) -> Self {
+        RssqlError::PolarsError(value)
+    }
+}
 
-impl<E> From<E> for RssqlError
-where
-    E: std::error::Error + Send + Sync + 'static,
-{
-    fn from(value: E) -> Self {
-        RssqlError::SqlServerError(value.into())
+impl From<tiberius::error::Error> for RssqlError {
+    fn from(value: tiberius::error::Error) -> Self {
+        RssqlError::SqlServerError(value)
+    }
+}
+
+impl From<&'static str> for RssqlError {
+    fn from(value: &'static str) -> Self{
+        RssqlError::RsRunningError(value)
     }
 }
 
