@@ -19,6 +19,11 @@ pub enum RssqlError {
     SentError(SentError),
 }
 
+
+impl std::error::Error for RssqlError {
+
+}
+
 impl serde::Serialize for RssqlError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

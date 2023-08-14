@@ -23,14 +23,14 @@ pub struct QueryBuilder {
     // relation_func: Box<dyn Fn(&str) -> &'static str>,
     relation_func: fn(&str) -> &'static str,
 
-    row_to_json_func: HashMap<String, Box<dyn Fn(&tiberius::Row) -> Map<String, Value>>>,
+    row_to_json_func: HashMap<String, Box<dyn Fn(&tiberius::Row) -> Map<String, Value> + Send + 'static>>,
     // mapper from table name to select row func
 
     // #[cfg(feature = "polars")]
 }
 
 impl QueryBuilder {
-    pub fn new(table: &'static str, fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str, row_to_json: Box<dyn Fn(&tiberius::Row) -> Map<String, Value>>) -> Self {
+    pub fn new(table: &'static str, fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str, row_to_json: Box<dyn Fn(&tiberius::Row) -> Map<String, Value> + Send + 'static>) -> Self {
         QueryBuilder {
             table: table,
             fields: HashMap::from([fields]),
