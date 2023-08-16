@@ -3,11 +3,10 @@
 #[cfg(test)]
 mod tests {
     use tokio::net::TcpStream;
-    use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
-
-    use tiberius::{AuthMethod, Client, Config};
+    use tokio_util::compat::Compat;
 
     use rssql::prelude::*;
+    use tiberius::Client;
 
     #[cfg(feature = "polars")]
     #[tokio::test]
@@ -42,6 +41,18 @@ mod tests {
         let query = Fcst::query().get_dataframe::<Fcst>(&mut client).await.unwrap();
         dbg!(&query);
         dbg!(now.elapsed());
+    }
+
+    #[test]
+    fn aaa() {
+        let df = df!(
+            "asdf" => &[1,2,3,4,4,5,6],
+            "ffff" => &[5,5,6,7,7,8,9]
+        ).unwrap();
+        let a = df.filter(&df.column("asdf").unwrap().is_null()).unwrap();
+        let b = df.filter(&df.column("asdf").unwrap().is_not_null()).unwrap();
+        dbg!(a);
+        dbg!(b);
     }
 
     pub async fn get_client() -> Client<Compat<TcpStream>> {

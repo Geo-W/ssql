@@ -23,18 +23,34 @@ mod tests {
         dbg!(now.elapsed());
     }
 
-    #[test]
-    fn test() {
-        let query = Customerlist::query()
-            .join::<Test>();
+    #[tokio::test]
+    async fn test() {
+        let mut client = get_client().await;
+        let mut query = Customerlist::query();
+        query.find_all(&mut client).await.unwrap();
+        dbg!(query.query_result);
+        // .join::<Test>();
     }
 
     #[tokio::test]
-    async fn insert() {
-        let conn = get_client().await;
+    async fn insert_many() {
+        let mut conn = get_client().await;
         let it = vec![Person { id: 5, Email: "a".to_string() }, Person { id: 6, Email: "a".to_string() }].into_iter();
-        let a = Person::insert_many(it, conn).await;
+        let a = Person::insert_many(it, &mut conn).await;
+        let it = vec![Person { id: 5, Email: "a".to_string() }, Person { id: 6, Email: "a".to_string() }];
+        let a = Person::insert_many(it, &mut conn).await;
         dbg!(&a);
+    }
+
+    #[tokio::test]
+    async fn insert_one() {
+        let mut conn = get_client().await;
+        let item = Person {
+            id: 0,
+            Email: "".to_string(),
+        };
+        let ret = item.insert_one(&mut conn).await;
+        assert_eq!(ret.is_ok(), true);
     }
 
 
@@ -77,7 +93,7 @@ mod tests {
         Dv: Option<f64>,
         Route: Option<String>,
         TransitTime: Option<String>,
-        Plant: Option<String>
+        Plant: Option<String>,
     }
 
 

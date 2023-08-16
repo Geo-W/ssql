@@ -87,25 +87,25 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
         };
     });
 
+    // for insert one
+    let builder_insert_fields = fields.iter()
+        .map(|f| { f.clone().ident.unwrap().to_string() })
+        .reduce(|cur: String, next: String| format!("{},{}", cur, &next)).unwrap();
+    let mut fields_count = 0;
+    let builder_insert_params = fields.iter()
+        .map(|f| {
+            fields_count += 1;
+            return format!("@p{}", fields_count);
+        })
+        .reduce(|cur: String, next: String| format!("{},{}", cur, &next)).unwrap();
+    let builder_insert_data = fields.iter().map(|f|
+        f.clone().ident.unwrap()
+    )
+        // .filter(|x| { *x.to_string() != "id".to_string() })
+        .map(|f| return quote! {&self.#f});
 
-    // let builder_insert_fields = fields.iter()
-    //     .map(|f| { f.clone().ident.unwrap().to_string() })
-    //     .reduce(|cur: String, next: String| format!("{},{}", cur, &next)).unwrap();
-    // let mut fields_count = 0;
-    // let builder_insert_params = fields.iter()
-    //     .map(|f| {
-    //         fields_count += 1;
-    //         return format!("@p{}", fields_count);
-    //     })
-    //     .reduce(|cur: String, next: String| format!("{},{}", cur, &next)).unwrap();
-    // let builder_insert_data = fields.iter().map(|f|
-    //     f.clone().ident.unwrap()
-    // )
-    //     // .filter(|x| { *x.to_string() != "id".to_string() })
-    //     .map(|f| return quote! {&self.#f});
 
-
-    // for getting dataframe
+    #[cfg(feature = "polars")]
     let builder_new_vecs = fields.iter().map(|f| {
         let field = f.clone().ident.unwrap();
         let ty = &f.ty;
@@ -114,6 +114,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
         }
     });
 
+    #[cfg(feature = "polars")]
     let builder_insert_to_df = fields.iter().map(|f| {
         let field = f.clone().ident.unwrap();
         quote!{
@@ -121,6 +122,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
         }
     });
 
+    #[cfg(feature = "polars")]
     let builder_df = fields.iter().map(|f| {
         let field = f.clone().ident.unwrap();
         let mn = field.to_string();
@@ -257,7 +259,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                 }
             }
 
-            async fn insert_many(iter: impl Iterator<Item = #struct_name> , mut conn: Client<Compat<TcpStream>>) -> RssqlResult<u64>
+            async fn insert_many(iter: impl IntoIterator<Item = #struct_name> , conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<u64>
             // where I:  impl Iterator<Item = #struct_name>
             {
                 let mut req = conn.bulk_insert(#table_name).await?;
@@ -270,11 +272,12 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                 Ok(res.total())
             }
 
-            // async fn insert_one(self, mut conn: Client<Compat<TcpStream>>) -> Result<(), RssqlError> {
-            //     let sql = format!("INSERT INTO {} ({}) values({})", #table_name, #builder_insert_fields, #builder_insert_params);
-            //     db.execute(sql, &[#(#builder_insert_data,)*]).await?;
-            //     Ok(())
-            // }
+            async fn insert_one(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()> {
+                let sql = format!("INSERT INTO {} ({}) values({})", #table_name, #builder_insert_fields, #builder_insert_params);
+                conn.execute(sql, &[#(#builder_insert_data,)*]).await?;
+                Ok(())
+            }
+
 
 
         }

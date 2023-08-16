@@ -154,8 +154,9 @@ pub trait RusqlMarker: Sized {
     fn fields() -> Vec<&'static str>;
     fn row_to_json(row: &tiberius::Row) -> Map<String, Value>;
     fn row_to_self(row: &tiberius::Row) -> Self;
-    async fn insert_many(iter: impl Iterator<Item=Self>, conn: Client<Compat<TcpStream>>) -> Result<u64, RssqlError>;
-    // async fn insert_one(self, conn: Client<Compat<TcpStream>>) -> Result<(), RssqlError>;
+    async fn insert_many(iter: impl IntoIterator<Item=Self>, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<u64>;
+    async fn insert_one(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()>;
+    // async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()>;
 }
 
 #[cfg(feature = "polars")]
