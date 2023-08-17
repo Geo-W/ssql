@@ -146,8 +146,8 @@ impl QueryBuilder {
         self.query_result.remove(B::table_name()).unwrap()
     }
 
-    pub async fn delete(dt: &ColumnData<'_>, table: &'static str, pk: &'static str, conn: &mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<()> {
-        let condition = match dt {
+    pub fn process_pk_condition(dt: &ColumnData<'_>) -> String {
+        match dt {
             ColumnData::U8(v) => {
                 match v {
                     None => { " is null ".to_string() }
@@ -175,8 +175,11 @@ impl QueryBuilder {
             _ => {
                 unimplemented!()
             }
-        };
+        }
+    }
 
+    pub async fn delete(dt: &ColumnData<'_>, table: &'static str, pk: &'static str, conn: &mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<()> {
+        let condition = Self::process_pk_condition(&dt);
         conn.execute(format!("DELETE FROM {} WHERE {} {}", table, pk, condition), &[]).await?;
         Ok(())
     }
@@ -192,6 +195,7 @@ pub trait RusqlMarker: Sized {
     async fn insert_many(iter: impl IntoIterator<Item=Self>, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<u64>;
     async fn insert_one(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()>;
     async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()>;
+    async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()>;
 }
 
 #[cfg(feature = "polars")]

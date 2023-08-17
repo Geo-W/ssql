@@ -104,6 +104,16 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
         // .filter(|x| { *x.to_string() != "id".to_string() })
         .map(|f| return quote! {&self.#f});
 
+    // for update one
+    fields_count = 0;
+    let builder_update_fields = fields.iter()
+        .map(|f| {
+            fields_count += 1;
+            return format!(" {} = @p{}", f.clone().ident.unwrap().to_string(), fields_count);
+        })
+        .reduce(|cur: String, next: String| format!("{},{}", cur, &next)).unwrap();
+    let builder_update_data = builder_insert_data.clone();
+
 
     #[cfg(feature = "polars")]
         let builder_new_vecs = fields.iter().map(|f| {
@@ -311,6 +321,13 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
             async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()> {
                 let (pk, dt) = self.primary_key();
                 QueryBuilder::delete(&dt, #table_name, pk, conn).await?;
+                Ok(())
+            }
+
+            async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()> {
+                let (pk, dt) = self.primary_key();
+                let sql = format!("UPDATE {} SET {} WHERE {} {}", #table_name, #builder_update_fields, pk, QueryBuilder::process_pk_condition(&dt));
+                conn.execute(sql, &[#(#builder_update_data,)*]).await?;
                 Ok(())
             }
 

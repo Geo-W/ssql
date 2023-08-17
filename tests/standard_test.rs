@@ -2,13 +2,11 @@
 #[cfg(test)]
 mod tests {
     use serde::{Deserialize, Serialize};
+    use tiberius::Client;
     use tokio::net::TcpStream;
-    use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
-
-    use tiberius::{AuthMethod, Client, ColumnData, Config, ToSql};
+    use tokio_util::compat::Compat;
 
     use rssql::prelude::*;
-
 
     #[tokio::test]
     async fn it_works2() {
@@ -46,7 +44,7 @@ mod tests {
     async fn insert_one() {
         let mut conn = get_client().await;
         let item = Person {
-            id: 0,
+            id: 99,
             Email: "".to_string(),
         };
         let ret = item.insert_one(&mut conn).await;
@@ -55,8 +53,18 @@ mod tests {
 
     #[tokio::test]
     async fn delete() {
-        let p = Person{
+        let p = Person {
             id: 0,
+            Email: "".to_string(),
+        };
+        let mut conn = get_client().await;
+        assert_eq!(p.delete(&mut conn).await.is_ok(), true);
+    }
+
+    #[tokio::test]
+    async fn update() {
+        let p = Person {
+            id: 99,
             Email: "".to_string(),
         };
         let mut conn = get_client().await;
