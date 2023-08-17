@@ -5,7 +5,7 @@ mod tests {
     use tokio::net::TcpStream;
     use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
-    use tiberius::{AuthMethod, Client, Config};
+    use tiberius::{AuthMethod, Client, ColumnData, Config, ToSql};
 
     use rssql::prelude::*;
 
@@ -53,6 +53,16 @@ mod tests {
         assert_eq!(ret.is_ok(), true);
     }
 
+    #[tokio::test]
+    async fn delete() {
+        let p = Person{
+            id: 0,
+            Email: "".to_string(),
+        };
+        let mut conn = get_client().await;
+        assert_eq!(p.delete(&mut conn).await.is_ok(), true);
+    }
+
 
     pub async fn get_client() -> Client<Compat<TcpStream>> {
         rssql::utils::get_client("username", "password", "host", "database").await
@@ -80,6 +90,7 @@ mod tests {
     #[derive(ORM, Debug, Default)]
     #[rusql(table = Person)]
     pub struct Person {
+        #[rusql(primary_key)]
         pub(crate) id: i32,
         pub(crate) Email: String,
     }

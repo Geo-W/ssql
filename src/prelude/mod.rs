@@ -3,7 +3,7 @@ pub use rusql_macro::ORM;
 pub use crate::structs::querybuilder::QueryBuilder;
 pub use crate::structs::querybuilder::RusqlMarker;
 
-pub use tiberius::{self, Row, Client, IntoRow, TokenRow, IntoSql};
+pub use tiberius::{self, Row, Client, IntoRow, TokenRow, IntoSql, ColumnData, ToSql};
 pub use tokio::net::TcpStream;
 pub use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 

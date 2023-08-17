@@ -11,7 +11,7 @@ use syn::FieldsNamed;
 
 use crate::utils::{
     parse_table_name,
-    extract_type_from_option
+    extract_type_from_option,
 };
 
 mod utils;
@@ -93,7 +93,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
         .reduce(|cur: String, next: String| format!("{},{}", cur, &next)).unwrap();
     let mut fields_count = 0;
     let builder_insert_params = fields.iter()
-        .map(|f| {
+        .map(|_| {
             fields_count += 1;
             return format!("@p{}", fields_count);
         })
@@ -106,27 +106,27 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
 
 
     #[cfg(feature = "polars")]
-    let builder_new_vecs = fields.iter().map(|f| {
+        let builder_new_vecs = fields.iter().map(|f| {
         let field = f.clone().ident.unwrap();
         let ty = &f.ty;
-        quote!{
+        quote! {
             let mut #field : Vec<#ty> = vec![]
         }
     });
 
     #[cfg(feature = "polars")]
-    let builder_insert_to_df = fields.iter().map(|f| {
+        let builder_insert_to_df = fields.iter().map(|f| {
         let field = f.clone().ident.unwrap();
-        quote!{
+        quote! {
             #field.push(Phant_Name1.#field)
         }
     });
 
     #[cfg(feature = "polars")]
-    let builder_df = fields.iter().map(|f| {
+        let builder_df = fields.iter().map(|f| {
         let field = f.clone().ident.unwrap();
         let mn = field.to_string();
-        quote!{
+        quote! {
             #mn => #field
         }
     });
@@ -151,7 +151,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                         }
                     }
                 }
-            },
+            }
             None => {
                 let type_name = ty.to_token_stream().to_string();
                 match type_name.as_str() {
@@ -175,20 +175,29 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
 
     let mut relations: Vec<String> = vec![];
     let mut tables: Vec<String> = vec![];
+    let mut primary_key = None;
     for field in fields.iter() {
-        let field_name = field.ident.as_ref().unwrap().to_string();
         for attr in field.attrs.iter() {
             if let Some(ident) = attr.path().get_ident() {
                 if ident == "rusql" {
                     if let Ok(list) = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated) {
                         for meta in list.iter() {
+                            if let Meta::Path(path) = meta {
+                                let Path { ref segments, .. } = path;
+                                for rssql_tags in segments.iter() {
+                                    if rssql_tags.ident == "primary_key" {
+                                        primary_key = Some(field.clone());
+                                    }
+                                }
+                            }
+
                             if let Meta::NameValue(named_v) = meta {
                                 let Path { ref segments, .. } = &named_v.path;
-                                for rusql_segs in segments.iter() {
-                                    if rusql_segs.ident == "foreign_key" {
-                                        // let b = &named_v.value;
+                                for rssql_tags in segments.iter() {
+                                    if rssql_tags.ident == "foreign_key" {
                                         if let Expr::Lit(ExprLit { lit, .. }) = &named_v.value {
                                             if let Lit::Str(v) = lit {
+                                                let field_name = field.ident.as_ref().unwrap().to_string();
                                                 relations.push(format!("{}.{} = {}", &table_name, field_name, v.value()));
                                                 tables.push(v.value()[..v.value().find('.').unwrap()].to_string());
                                             }
@@ -236,6 +245,27 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
         }}
     });
 
+    let pk = if let Some(f) = primary_key {
+        let field_name = f.ident.as_ref().unwrap().to_string();
+        let mn = f.ident.unwrap();
+        quote! {
+            impl #struct_name {
+                fn primary_key(&self) -> (&'static str, ColumnData) {
+                    (#field_name, self.#mn.to_sql())
+                }
+            }
+        }
+    } else {
+        quote! {
+            impl #struct_name {
+                fn primary_key(&self) -> (&'static str, ColumnData) {
+                    unimplemented!("Primary key not set");
+                }
+            }
+        }
+    };
+    result.extend(pk);
+
     result.extend(quote! {
         #[async_trait(?Send)]
         impl RusqlMarker for #struct_name {
@@ -278,7 +308,11 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                 Ok(())
             }
 
-
+            async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()> {
+                let (pk, dt) = self.primary_key();
+                QueryBuilder::delete(&dt, #table_name, pk, conn).await?;
+                Ok(())
+            }
 
         }
         impl #struct_name {
@@ -307,6 +341,8 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
         }
     });
 
+
+
     #[cfg(feature = "polars")]
     result.extend(quote! {
         impl PolarsHelper for #struct_name {
@@ -321,7 +357,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                 )
             }
         }
-    } );
+    });
 
     result.into()
 }
