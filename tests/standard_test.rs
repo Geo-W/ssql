@@ -14,9 +14,11 @@ mod tests {
         let mut client = get_client().await;
         let mut query = Customerlist::query();
         let a = query.get_struct::<Customerlist>(&mut client).await;
-        dbg!(a.unwrap());
+        // dbg!(a.unwrap());
         let b = query.get_serialized::<Customerlist>(&mut client).await;
-        dbg!(b.unwrap());
+        // dbg!(b.unwrap());
+        let mut c = query.join::<SlowMoving>();
+        c.get_struct_2::<Customerlist, SlowMoving>(&mut client).await.unwrap();
     }
 
     #[tokio::test]
@@ -69,14 +71,14 @@ mod tests {
     #[rssql(table = CUSTOMER_LIST, schema = MASTER_DATA)]
     pub struct Customerlist {
         pub(crate) ship_to_id: Option<String>,
-        #[rssql(foreign_key = "SLOW_MOVING.stock_in_day")]
+        #[rssql(foreign_key = "DALI_DATA.SLOW_MOVING.stock_in_day")]
         pub(crate) ship_to: Option<String>,
         pub(crate) volume: Option<i32>,
         pub(crate) container: Option<String>,
     }
 
     #[derive(ORM, Debug, Default)]
-    #[rssql(table = SLOW_MOVING)]
+    #[rssql(table = SLOW_MOVING, schema = DALI_DATA)]
     pub struct SlowMoving {
         pub(crate) stock_in_day: Option<String>,
         pub(crate) total_value: Option<f64>,

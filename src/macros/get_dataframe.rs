@@ -1,28 +1,17 @@
 #[macro_export]
 macro_rules! impl_get_dataframe {
-    ($func_name:ident, $process_row: ident, [$($T:ident, $R: ident, $R_Ty: ty),*]) => {
+    ($func_name:ident, $get_struct_func: ident, [$($T:ident, $R: ident, $R_Ty: ty),*]) => {
         #[allow(unused_parens)]
+        #[cfg(feature = "polars")]
         pub async fn $func_name<$($T),*>(
             &mut self,
             conn: &mut tiberius::Client<Compat<TcpStream>>,
-        ) -> RssqlResult<($(Vec<$R_Ty>),*)>
+        ) -> RssqlResult<($($R_Ty),*)>
         where
-            $($T: RusqlMarker),*
+            $($T: RssqlMarker + PolarsHelper),*
         {
-            let mut stream = self.execute(conn).await?;
-            $(let mut $R: Vec<$R_Ty> = vec![];)*
-
-            while let Some(item) = stream.try_next().await.unwrap() {
-                match item {
-                    QueryItem::Row(row) => {
-                        $($R.push($T::$process_row(&row).into());)*
-                    }
-                    QueryItem::Metadata(_) => {}
-                }
-            }
-
-            Ok(($($R),*))
+            let ($($R),*) = self.$get_struct_func::<$($T),*>(conn).await?;
+            Ok(($($T::dataframe($R)?),*))
         }
     };
 }
-

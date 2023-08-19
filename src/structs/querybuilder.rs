@@ -74,12 +74,6 @@ where T: RssqlMarker
         self
     }
 
-    pub async fn find_all(&mut self, _conn: &mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<()> {
-        Ok(())
-    }
-
-
-
     crate::impl_get_data!(get_serialized, row_to_json, [A, ret1, Value]);
     crate::impl_get_data!(get_serialized_2, row_to_json, [A, ret1, Value, B, ret2, Value]);
     crate::impl_get_data!(get_serialized_3, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value]);
@@ -92,24 +86,12 @@ where T: RssqlMarker
     crate::impl_get_data!(get_struct_4, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D]);
     crate::impl_get_data!(get_struct_5, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D, E, ret5, E]);
 
+    crate::impl_get_dataframe!(get_dataframe, get_struct, [A, ret1, DataFrame]);
+    crate::impl_get_dataframe!(get_dataframe_2, get_struct_2, [A, ret1, DataFrame, B, ret2, DataFrame]);
+    crate::impl_get_dataframe!(get_dataframe_3, get_struct_3, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame]);
+    crate::impl_get_dataframe!(get_dataframe_4, get_struct_4, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame]);
+    crate::impl_get_dataframe!(get_dataframe_5, get_struct_5, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame, E, ret5, DataFrame]);
 
-
-    #[cfg(feature = "polars")]
-    pub async fn get_dataframe<A>(&mut self, conn: &mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<(DataFrame)>
-        where A: RssqlMarker + PolarsHelper + std::fmt::Debug
-    {
-        let vec1 = self.get_struct::<A>(conn).await?;
-        Ok(A::dataframe(vec1)?)
-    }
-
-    #[cfg(feature = "polars")]
-    pub async fn get_dataframe_2<A, B>(&mut self, conn: &mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<(DataFrame, DataFrame)>
-        where A: RssqlMarker + PolarsHelper + std::fmt::Debug,
-              B: RssqlMarker + PolarsHelper + std::fmt::Debug
-    {
-        let (vec1, vec2) = self.get_struct_2::<A, B>(conn).await?;
-        Ok((A::dataframe(vec1)?, B::dataframe(vec2)?))
-    }
 
     async fn execute<'a>(&mut self, conn: &'a mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<QueryStream<'a>> {
         let sql = self.fields.iter()

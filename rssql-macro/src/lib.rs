@@ -209,7 +209,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                                             if let Lit::Str(v) = lit {
                                                 let field_name = field.ident.as_ref().unwrap().to_string();
                                                 relations.push(format!("{}.{} = {}", &table_name, field_name, v.value()));
-                                                tables.push(v.value()[..v.value().find('.').unwrap()].to_string());
+                                                tables.push(v.value()[..v.value().rfind('.').unwrap()].to_string());
                                             }
                                         }
                                         // if let Expr::Path(p_v) = &named_v.value {
