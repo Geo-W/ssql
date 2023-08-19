@@ -8,25 +8,15 @@ mod tests {
 
     use rssql::prelude::*;
 
-    #[tokio::test]
-    async fn it_works2() {
-        let mut client = get_client().await;
-        let now = std::time::Instant::now();
-        let mut query = Fcst::query();
-        query.find_all(&mut client).await.unwrap();
-        dbg!(now.elapsed());
-
-        let now = std::time::Instant::now();
-        let _query = Fcst::query().get_self::<Fcst>(&mut client).await.unwrap();
-        dbg!(now.elapsed());
-    }
 
     #[tokio::test]
     async fn test() {
         let mut client = get_client().await;
         let mut query = Customerlist::query();
-        query.find_all(&mut client).await.unwrap();
-        dbg!(query.query_result);
+        let a = query.get_struct::<Customerlist>(&mut client).await;
+        dbg!(a);
+        // let b = query.get_serialized::<Customerlist>(&mut client).await;
+        // dbg!(b.unwrap());
         // .join::<Test>();
     }
 
@@ -34,7 +24,7 @@ mod tests {
     async fn insert_many() {
         let mut conn = get_client().await;
         let it = vec![Person { id: 5, Email: "a".to_string() }, Person { id: 6, Email: "a".to_string() }].into_iter();
-        let a = Person::insert_many(it, &mut conn).await;
+        let _a = Person::insert_many(it, &mut conn).await;
         let it = vec![Person { id: 5, Email: "a".to_string() }, Person { id: 6, Email: "a".to_string() }];
         let a = Person::insert_many(it, &mut conn).await;
         dbg!(&a);
@@ -77,7 +67,7 @@ mod tests {
     }
 
     #[derive(ORM, Debug, Default, Serialize, Deserialize)]
-    #[rusql(table = CUSTOMER_LIST)]
+    #[rusql(table = CUSTOMER_LIST, schema = MASTER_DATA)]
     pub struct Customerlist {
         pub(crate) ship_to_id: Option<String>,
         #[rusql(foreign_key = "SLOW_MOVING.stock_in_day")]
@@ -88,7 +78,7 @@ mod tests {
 
     #[derive(ORM, Debug, Default)]
     #[rusql(table = SLOW_MOVING)]
-    pub struct Test {
+    pub struct SlowMoving {
         pub(crate) stock_in_day: Option<String>,
         pub(crate) total_value: Option<f64>,
         pub(crate) Week: Option<i64>,

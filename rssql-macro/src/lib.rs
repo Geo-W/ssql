@@ -293,7 +293,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                 map
             }
 
-            fn row_to_self(row:&Row) -> Self {
+            fn row_to_struct(row:&Row) -> Self {
                 Self{
                     #(#builder_row_to_self_func,)*
                 }
@@ -320,13 +320,13 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
 
             async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()> {
                 let (pk, dt) = self.primary_key();
-                QueryBuilder::delete(&dt, #table_name, pk, conn).await?;
+                QueryBuilder::<#struct_name>::delete(&dt, #table_name, pk, conn).await?;
                 Ok(())
             }
 
             async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()> {
                 let (pk, dt) = self.primary_key();
-                let sql = format!("UPDATE {} SET {} WHERE {} {}", #table_name, #builder_update_fields, pk, QueryBuilder::process_pk_condition(&dt));
+                let sql = format!("UPDATE {} SET {} WHERE {} {}", #table_name, #builder_update_fields, pk, QueryBuilder::<#struct_name>::process_pk_condition(&dt));
                 conn.execute(sql, &[#(#builder_update_data,)*]).await?;
                 Ok(())
             }
@@ -348,8 +348,8 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                 }
             }
 
-            pub fn query() -> QueryBuilder {
-                QueryBuilder::new(#table_name,
+            pub fn query() -> QueryBuilder<#struct_name> {
+                QueryBuilder::<#struct_name>::new(#table_name,
                     (#table_name, #struct_name::fields()),
                     #struct_name::relationship,
                     Box::new(#struct_name::row_to_json))

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use futures_lite::stream::StreamExt;
@@ -8,29 +9,33 @@ use serde_json::{Map, Value};
 use tokio::net::TcpStream;
 use tokio_util::compat::Compat;
 
-use tiberius::{Client, Column, ColumnData, QueryItem, QueryStream};
+use tiberius::{Client, ColumnData, QueryItem, QueryStream};
 
 use crate::error::custom_error::RssqlResult;
 
-pub struct QueryBuilder {
+pub struct QueryBuilder<T: RusqlMarker> {
     table: &'static str,
     pub(crate) fields: HashMap<&'static str, Vec<&'static str>>,
     pub(crate) filters: Vec<String>,
     pub(crate) join: String,
     tables: Vec<&'static str>,
-    pub query_result: HashMap<&'static str, Vec<Value>>,
+    // pub query_result: HashMap<&'static str, Vec<Value>>,
     sql: String,
     // relation_func: Box<dyn Fn(&str) -> &'static str>,
     relation_func: fn(&str) -> &'static str,
 
     row_to_json_func: HashMap<String, Box<dyn Fn(&tiberius::Row) -> Map<String, Value> + Send + 'static>>,
+    _marker: Option<PhantomData<T>>
     // mapper from table name to select row func
 
-    // #[cfg(feature = "polars")]
 }
 
-impl QueryBuilder {
-    pub fn new(table: &'static str, fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str, row_to_json: Box<dyn Fn(&tiberius::Row) -> Map<String, Value> + Send + 'static>) -> Self {
+impl<T> QueryBuilder<T>
+where T: RusqlMarker
+{
+    pub fn new<C>(table: &'static str, fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str, row_to_json: Box<dyn Fn(&tiberius::Row) -> Map<String, Value> + Send + 'static>) -> QueryBuilder<C>
+    where C: RusqlMarker
+    {
         QueryBuilder {
             table: table,
             fields: HashMap::from([fields]),
@@ -40,7 +45,7 @@ impl QueryBuilder {
             relation_func: func,
             sql: "".to_string(),
             row_to_json_func: HashMap::from([(table.to_string(), row_to_json)]),
-            query_result: HashMap::from([(table, vec![])]),
+            _marker: None
         }
     }
 
@@ -49,10 +54,10 @@ impl QueryBuilder {
         self
     }
 
-    pub fn join<T>(mut self) -> QueryBuilder
-        where T: RusqlMarker + 'static {
-        let name = T::table_name();
-        let fields = T::fields();
+    pub fn join<B>(mut self) -> QueryBuilder<T>
+        where B: RusqlMarker + 'static {
+        let name = B::table_name();
+        let fields = B::fields();
         println!("name: {:?}", name);
         let relation = self.find_relation(&name);
         self.join.push_str(&format!(" LEFT JOIN {} ", relation));
@@ -60,8 +65,7 @@ impl QueryBuilder {
             Some(_v) => panic!("table already joined."),
             None => {
                 self.tables.push(name);
-                self.query_result.insert(name, vec![]);
-                self.row_to_json_func.insert(name.to_string(), Box::new(T::row_to_json));
+                self.row_to_json_func.insert(name.to_string(), Box::new(B::row_to_json));
             }
         }
         self
@@ -76,36 +80,23 @@ impl QueryBuilder {
         self
     }
 
-    pub async fn find_all(&mut self, conn: &mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<()> {
-        let sql = self.fields.iter()
-            .map(|(table, fields)|
-                fields.iter().map(|field| format!(r#"{}.{} as "{}.{}""#, table, field, table, field))
-                    .reduce(|cur, nxt| format!("{},{}", cur, nxt)).unwrap()
-            )
-            .reduce(|cur, nxt| format!("{},{}", cur, nxt)).unwrap();
-
-        // let mut stream = conn.simple_query(r#"SELECT ship_to_id as "CUSTOMER_LIST.ship_to_id", ship_to as "CUSTOMER_LIST.ship_to",
-        // volume as "CUSTOMER_LIST.volume", container as "CUSTOMER_LIST.container" FROM CUSTOMER_LIST"#).await.unwrap();
-        dbg!(format!("SELECT {} FROM {} {} ", sql, self.table, self.join));
-        let mut stream = conn.simple_query(format!("SELECT {} FROM {} {} ", sql, self.table, self.join)).await?;
-        while let Some(item) = stream.try_next().await.unwrap() {
-            match item {
-                QueryItem::Row(row) => {
-                    self.tables.iter().for_each(|table| {
-                        self.query_result.get_mut(table).unwrap().push(
-                            (self.row_to_json_func.get(&table.to_string()).unwrap())(&row).into());
-                    });
-                }
-                QueryItem::Metadata(_) => {}
-            }
-        }
+    pub async fn find_all(&mut self, _conn: &mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<()> {
         Ok(())
     }
 
 
-    crate::impl_get_self!(get_self, [A, ret1]);
-    crate::impl_get_self!(get_self_2, [A, ret1, B, ret2]);
-    crate::impl_get_self!(get_self_3, [A, ret1, B, ret2, C, ret3]);
+
+    crate::impl_get_data!(get_serialized, row_to_json, [A, ret1, Value]);
+    crate::impl_get_data!(get_serialized_2, row_to_json, [A, ret1, Value, B, ret2, Value]);
+    crate::impl_get_data!(get_serialized_3, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value]);
+    crate::impl_get_data!(get_serialized_4, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value]);
+    crate::impl_get_data!(get_serialized_5, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value, E, ret5, Value]);
+
+    crate::impl_get_data!(get_struct, row_to_struct, [A, ret1, A]);
+    crate::impl_get_data!(get_struct_2, row_to_struct, [A, ret1, A, B, ret2, B]);
+    crate::impl_get_data!(get_struct_3, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C]);
+    crate::impl_get_data!(get_struct_4, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D]);
+    crate::impl_get_data!(get_struct_5, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D, E, ret5, E]);
 
 
 
@@ -139,11 +130,6 @@ impl QueryBuilder {
         dbg!(format!("SELECT {} FROM {} {} ", sql, self.table, self.join));
         let stream = conn.simple_query(format!("SELECT {} FROM {} {} ", sql, self.table, self.join)).await?;
         Ok(stream)
-    }
-
-
-    pub fn get<B: RusqlMarker>(&mut self) -> Vec<Value> {
-        self.query_result.remove(B::table_name()).unwrap()
     }
 
     pub fn process_pk_condition(dt: &ColumnData<'_>) -> String {
@@ -191,7 +177,7 @@ pub trait RusqlMarker: Sized {
     fn table_name() -> &'static str;
     fn fields() -> Vec<&'static str>;
     fn row_to_json(row: &tiberius::Row) -> Map<String, Value>;
-    fn row_to_self(row: &tiberius::Row) -> Self;
+    fn row_to_struct(row: &tiberius::Row) -> Self;
     async fn insert_many(iter: impl IntoIterator<Item=Self>, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<u64>;
     async fn insert_one(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()>;
     async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()>;
