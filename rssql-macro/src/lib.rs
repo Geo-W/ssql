@@ -312,7 +312,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                 Ok(res.total())
             }
 
-            async fn insert_one(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()> {
+            async fn insert(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()> {
                 let sql = format!("INSERT INTO {} ({}) values({})", #table_name, #builder_insert_fields, #builder_insert_params);
                 conn.execute(sql, &[#(#builder_insert_data,)*]).await?;
                 Ok(())
