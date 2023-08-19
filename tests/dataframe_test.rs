@@ -22,7 +22,7 @@ mod tests {
     async fn data_frame2() {
         let mut client = get_client().await;
         let (df1, df2) = Customerlist::query()
-            .join::<Test>()
+            .left_join::<Test>()
             .get_dataframe_2::<Customerlist, Test>(&mut client).await.unwrap();
         println!("{:?}", df1);
         println!("{:?}", df2);

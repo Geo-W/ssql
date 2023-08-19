@@ -50,12 +50,12 @@ where T: RssqlMarker
         self
     }
 
-    pub fn join<B>(mut self) -> QueryBuilder<T>
-        where B: RssqlMarker + 'static {
+    fn join<B>(mut self, join_type: &str) -> QueryBuilder<T>
+        where B: RssqlMarker {
         let name = B::table_name();
         let fields = B::fields();
         let relation = self.find_relation(&name);
-        self.join.push_str(&format!(" LEFT JOIN {} ", relation));
+        self.join.push_str(&format!(" {} JOIN {} ", join_type, relation));
         match self.fields.insert(&name, fields) {
             Some(_v) => panic!("table already joined."),
             None => {
@@ -63,6 +63,26 @@ where T: RssqlMarker
             }
         }
         self
+    }
+
+    pub fn left_join<B>(self) -> QueryBuilder<T>
+        where B: RssqlMarker {
+        self.join::<B>("LEFT")
+    }
+
+    pub fn right_join<B>(self) -> QueryBuilder<T>
+        where B: RssqlMarker {
+        self.join::<B>("RIGHT")
+    }
+
+    pub fn inner_join<B>(self) -> QueryBuilder<T>
+        where B: RssqlMarker {
+        self.join::<B>("INNER")
+    }
+
+    pub fn outer_join<B>(self) -> QueryBuilder<T>
+        where B: RssqlMarker {
+        self.join::<B>("OUTER")
     }
 
     fn find_relation(&self, table: &str) -> &'static str {
