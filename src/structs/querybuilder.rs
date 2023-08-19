@@ -175,7 +175,7 @@ pub trait RssqlMarker: Sized {
     fn row_to_json(row: &tiberius::Row) -> Map<String, Value>;
     fn row_to_struct(row: &tiberius::Row) -> Self;
     async fn insert_many(iter: impl IntoIterator<Item=Self>, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<u64>;
-    async fn insert_one(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()>;
+    async fn insert(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()>;
     async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()>;
     async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()>;
 }

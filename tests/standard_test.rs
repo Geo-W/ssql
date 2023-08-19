@@ -38,7 +38,7 @@ mod tests {
             id: 99,
             Email: "".to_string(),
         };
-        let ret = item.insert_one(&mut conn).await;
+        let ret = item.insert(&mut conn).await;
         assert_eq!(ret.is_ok(), true);
     }
 
