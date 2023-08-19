@@ -2,8 +2,13 @@
 name = "rssql-macro"
 version = "0.1.0"
 edition = "2021"
+authors = ["Geo W"]
+description = "Macro for rssql -- an sync ms sql server basic orm"
+keywords = ["async", "database", "sqlserver", "orm", "tiberius"]
+license = "MIT/Apache-2.0"
+repository = "https://github.com/Geo-W/rssql"
+readme = "README.md"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 polars = []
