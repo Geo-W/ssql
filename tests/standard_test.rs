@@ -14,9 +14,9 @@ mod tests {
         let mut client = get_client().await;
         let mut query = Customerlist::query();
         let a = query.get_struct::<Customerlist>(&mut client).await;
-        // dbg!(a.unwrap());
+        dbg!(a.unwrap());
         let b = query.get_serialized::<Customerlist>(&mut client).await;
-        // dbg!(b.unwrap());
+        dbg!(b.unwrap());
         let mut c = query.join::<SlowMoving>();
         c.get_struct_2::<Customerlist, SlowMoving>(&mut client).await.unwrap();
     }

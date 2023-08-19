@@ -2,6 +2,7 @@ pub use rssql_macro::ORM;
 
 pub use crate::structs::querybuilder::QueryBuilder;
 pub use crate::structs::querybuilder::RssqlMarker;
+pub use crate::error::custom_error::RssqlResult;
 
 pub use tiberius::{self, Row, Client, IntoRow, TokenRow, IntoSql, ColumnData, ToSql};
 pub use tokio::net::TcpStream;
@@ -11,12 +12,6 @@ pub use serde_json::{Map, Value};
 
 pub use async_trait::async_trait;
 
-
-pub use crate::error::custom_error::RssqlResult;
-
-
-pub use std::sync::Arc;
-pub use tokio::sync::Mutex;
 
 #[cfg(feature = "polars")]
 pub use polars::prelude::*;

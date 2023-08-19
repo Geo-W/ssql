@@ -34,25 +34,13 @@ mod tests {
         let mut client = get_client().await;
         let now = std::time::Instant::now();
         let mut query = Fcst::query();
-        query.find_all(&mut client).await.unwrap();
+        query.get_struct::<Fcst>(&mut client).await.unwrap();
         dbg!(now.elapsed());
 
         let now = std::time::Instant::now();
         let query = Fcst::query().get_dataframe::<Fcst>(&mut client).await.unwrap();
         dbg!(&query);
         dbg!(now.elapsed());
-    }
-
-    #[test]
-    fn aaa() {
-        let df = df!(
-            "asdf" => &[1,2,3,4,4,5,6],
-            "ffff" => &[5,5,6,7,7,8,9]
-        ).unwrap();
-        let a = df.filter(&df.column("asdf").unwrap().is_null()).unwrap();
-        let b = df.filter(&df.column("asdf").unwrap().is_not_null()).unwrap();
-        dbg!(a);
-        dbg!(b);
     }
 
     pub async fn get_client() -> Client<Compat<TcpStream>> {
@@ -86,7 +74,7 @@ mod tests {
     }
 
     #[derive(ORM, Debug, Default)]
-    #[rssql(table = FORECAST)]
+    #[rssql(table = FORECAST, schema = UPDATED_DATA)]
     pub struct Fcst {
         pub(crate) Customer: Option<String>,
         pub(crate) Material: Option<String>,
