@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
@@ -13,38 +13,34 @@ use tiberius::{Client, ColumnData, QueryItem, QueryStream};
 
 use crate::error::custom_error::RssqlResult;
 
-pub struct QueryBuilder<T: RusqlMarker> {
-    table: &'static str,
+pub struct QueryBuilder<T: RssqlMarker> {
     pub(crate) fields: HashMap<&'static str, Vec<&'static str>>,
     pub(crate) filters: Vec<String>,
     pub(crate) join: String,
-    tables: Vec<&'static str>,
+    tables: HashSet<&'static str>,
     // pub query_result: HashMap<&'static str, Vec<Value>>,
     sql: String,
     // relation_func: Box<dyn Fn(&str) -> &'static str>,
     relation_func: fn(&str) -> &'static str,
 
-    row_to_json_func: HashMap<String, Box<dyn Fn(&tiberius::Row) -> Map<String, Value> + Send + 'static>>,
     _marker: Option<PhantomData<T>>
     // mapper from table name to select row func
 
 }
 
 impl<T> QueryBuilder<T>
-where T: RusqlMarker
+where T: RssqlMarker
 {
-    pub fn new<C>(table: &'static str, fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str, row_to_json: Box<dyn Fn(&tiberius::Row) -> Map<String, Value> + Send + 'static>) -> QueryBuilder<C>
-    where C: RusqlMarker
+    pub fn new<C>(fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str) -> QueryBuilder<C>
+    where C: RssqlMarker
     {
         QueryBuilder {
-            table: table,
             fields: HashMap::from([fields]),
             filters: vec![],
-            tables: vec![table],
+            tables: HashSet::new(),
             join: String::new(),
             relation_func: func,
             sql: "".to_string(),
-            row_to_json_func: HashMap::from([(table.to_string(), row_to_json)]),
             _marker: None
         }
     }
@@ -55,17 +51,15 @@ where T: RusqlMarker
     }
 
     pub fn join<B>(mut self) -> QueryBuilder<T>
-        where B: RusqlMarker + 'static {
+        where B: RssqlMarker + 'static {
         let name = B::table_name();
         let fields = B::fields();
-        println!("name: {:?}", name);
         let relation = self.find_relation(&name);
         self.join.push_str(&format!(" LEFT JOIN {} ", relation));
         match self.fields.insert(&name, fields) {
             Some(_v) => panic!("table already joined."),
             None => {
-                self.tables.push(name);
-                self.row_to_json_func.insert(name.to_string(), Box::new(B::row_to_json));
+                self.tables.insert(name);
             }
         }
         self
@@ -102,18 +96,18 @@ where T: RusqlMarker
 
     #[cfg(feature = "polars")]
     pub async fn get_dataframe<A>(&mut self, conn: &mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<(DataFrame)>
-        where A: RusqlMarker + PolarsHelper + std::fmt::Debug
+        where A: RssqlMarker + PolarsHelper + std::fmt::Debug
     {
-        let vec1 = self.get_self(conn).await?;
+        let vec1 = self.get_struct::<A>(conn).await?;
         Ok(A::dataframe(vec1)?)
     }
 
     #[cfg(feature = "polars")]
     pub async fn get_dataframe_2<A, B>(&mut self, conn: &mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<(DataFrame, DataFrame)>
-        where A: RusqlMarker + PolarsHelper + std::fmt::Debug,
-              B: RusqlMarker + PolarsHelper + std::fmt::Debug
+        where A: RssqlMarker + PolarsHelper + std::fmt::Debug,
+              B: RssqlMarker + PolarsHelper + std::fmt::Debug
     {
-        let (vec1, vec2) = self.get_self_2::<A, B>(conn).await?;
+        let (vec1, vec2) = self.get_struct_2::<A, B>(conn).await?;
         Ok((A::dataframe(vec1)?, B::dataframe(vec2)?))
     }
 
@@ -127,8 +121,8 @@ where T: RusqlMarker
 
         // let mut stream = conn.simple_query(r#"SELECT ship_to_id as "CUSTOMER_LIST.ship_to_id", ship_to as "CUSTOMER_LIST.ship_to",
         // volume as "CUSTOMER_LIST.volume", container as "CUSTOMER_LIST.container" FROM CUSTOMER_LIST"#).await.unwrap();
-        dbg!(format!("SELECT {} FROM {} {} ", sql, self.table, self.join));
-        let stream = conn.simple_query(format!("SELECT {} FROM {} {} ", sql, self.table, self.join)).await?;
+        dbg!(format!("SELECT {} FROM {} {} ", sql, T::table_name(), self.join));
+        let stream = conn.simple_query(format!("SELECT {} FROM {} {} ", sql, T::table_name(), self.join)).await?;
         Ok(stream)
     }
 
@@ -173,7 +167,7 @@ where T: RusqlMarker
 
 
 #[async_trait(? Send)]
-pub trait RusqlMarker: Sized {
+pub trait RssqlMarker: Sized {
     fn table_name() -> &'static str;
     fn fields() -> Vec<&'static str>;
     fn row_to_json(row: &tiberius::Row) -> Map<String, Value>;

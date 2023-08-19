@@ -14,10 +14,9 @@ mod tests {
         let mut client = get_client().await;
         let mut query = Customerlist::query();
         let a = query.get_struct::<Customerlist>(&mut client).await;
-        dbg!(a);
-        // let b = query.get_serialized::<Customerlist>(&mut client).await;
-        // dbg!(b.unwrap());
-        // .join::<Test>();
+        dbg!(a.unwrap());
+        let b = query.get_serialized::<Customerlist>(&mut client).await;
+        dbg!(b.unwrap());
     }
 
     #[tokio::test]
@@ -67,17 +66,17 @@ mod tests {
     }
 
     #[derive(ORM, Debug, Default, Serialize, Deserialize)]
-    #[rusql(table = CUSTOMER_LIST, schema = MASTER_DATA)]
+    #[rssql(table = CUSTOMER_LIST, schema = MASTER_DATA)]
     pub struct Customerlist {
         pub(crate) ship_to_id: Option<String>,
-        #[rusql(foreign_key = "SLOW_MOVING.stock_in_day")]
+        #[rssql(foreign_key = "SLOW_MOVING.stock_in_day")]
         pub(crate) ship_to: Option<String>,
         pub(crate) volume: Option<i32>,
         pub(crate) container: Option<String>,
     }
 
     #[derive(ORM, Debug, Default)]
-    #[rusql(table = SLOW_MOVING)]
+    #[rssql(table = SLOW_MOVING)]
     pub struct SlowMoving {
         pub(crate) stock_in_day: Option<String>,
         pub(crate) total_value: Option<f64>,
@@ -86,16 +85,16 @@ mod tests {
     }
 
     #[derive(ORM, Debug, Default)]
-    #[rusql(table = Person)]
+    #[rssql(table = Person)]
     pub struct Person {
-        #[rusql(primary_key)]
+        #[rssql(primary_key)]
         pub(crate) id: i32,
         pub(crate) Email: String,
     }
 
 
     #[derive(ORM, Debug, Default)]
-    #[rusql(table = FORECAST)]
+    #[rssql(table = FORECAST)]
     pub struct Fcst {
         pub(crate) Customer: Option<String>,
         pub(crate) Material: Option<String>,
@@ -107,7 +106,7 @@ mod tests {
 
 
     // #[derive(ORM, Debug, Default)]
-    // #[rusql(table = SA)]
+    // #[rssql(table = SA)]
     // pub struct Sa {
     //     sa_qty: i64,
     //     material: String,

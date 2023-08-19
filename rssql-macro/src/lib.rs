@@ -23,7 +23,7 @@ mod utils;
 // use syn::token::Token;
 
 
-#[proc_macro_derive(ORM, attributes(rusql))]
+#[proc_macro_derive(ORM, attributes(rssql))]
 pub fn show_streams(tokens: TokenStream) -> TokenStream {
     // println!("attr: \"{}\"", attr.to_string());
     println!("item: \"{}\"", tokens.to_string());
@@ -189,7 +189,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
     for field in fields.iter() {
         for attr in field.attrs.iter() {
             if let Some(ident) = attr.path().get_ident() {
-                if ident == "rusql" {
+                if ident == "rssql" {
                     if let Ok(list) = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated) {
                         for meta in list.iter() {
                             if let Meta::Path(path) = meta {
@@ -278,7 +278,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
 
     result.extend(quote! {
         #[async_trait(?Send)]
-        impl RusqlMarker for #struct_name {
+        impl RssqlMarker for #struct_name {
             fn table_name() -> &'static str {
                 #table_name
             }
@@ -349,10 +349,9 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
             }
 
             pub fn query() -> QueryBuilder<#struct_name> {
-                QueryBuilder::<#struct_name>::new(#table_name,
+                QueryBuilder::<#struct_name>::new(
                     (#table_name, #struct_name::fields()),
-                    #struct_name::relationship,
-                    Box::new(#struct_name::row_to_json))
+                    #struct_name::relationship)
             }
 
         }

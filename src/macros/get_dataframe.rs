@@ -1,5 +1,5 @@
 #[macro_export]
-macro_rules! impl_get_data {
+macro_rules! impl_get_dataframe {
     ($func_name:ident, $process_row: ident, [$($T:ident, $R: ident, $R_Ty: ty),*]) => {
         #[allow(unused_parens)]
         pub async fn $func_name<$($T),*>(
@@ -7,7 +7,7 @@ macro_rules! impl_get_data {
             conn: &mut tiberius::Client<Compat<TcpStream>>,
         ) -> RssqlResult<($(Vec<$R_Ty>),*)>
         where
-            $($T: RssqlMarker),*
+            $($T: RusqlMarker),*
         {
             let mut stream = self.execute(conn).await?;
             $(let mut $R: Vec<$R_Ty> = vec![];)*
@@ -25,3 +25,4 @@ macro_rules! impl_get_data {
         }
     };
 }
+
