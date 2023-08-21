@@ -1,12 +1,12 @@
 [package]
-name = "rssql-macro"
+name = "ssql-macro"
 version = "0.1.0"
 edition = "2021"
 authors = ["Geo W"]
-description = "Macro for rssql -- an sync ms sql server basic orm"
+description = "Macro for ssql -- an sync ms sql server basic orm"
 keywords = ["async", "database", "sqlserver", "orm", "tiberius"]
 license = "MIT/Apache-2.0"
-repository = "https://github.com/Geo-W/rssql"
+repository = "https://github.com/Geo-W/ssql"
 readme = "README.md"
 
 

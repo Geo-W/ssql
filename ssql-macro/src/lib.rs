@@ -23,7 +23,7 @@ mod utils;
 // use syn::token::Token;
 
 
-#[proc_macro_derive(ORM, attributes(rssql))]
+#[proc_macro_derive(ORM, attributes(ssql))]
 pub fn show_streams(tokens: TokenStream) -> TokenStream {
     // println!("attr: \"{}\"", attr.to_string());
     println!("item: \"{}\"", tokens.to_string());
@@ -189,13 +189,13 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
     for field in fields.iter() {
         for attr in field.attrs.iter() {
             if let Some(ident) = attr.path().get_ident() {
-                if ident == "rssql" {
+                if ident == "ssql" {
                     if let Ok(list) = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated) {
                         for meta in list.iter() {
                             if let Meta::Path(path) = meta {
                                 let Path { ref segments, .. } = path;
-                                for rssql_tags in segments.iter() {
-                                    if rssql_tags.ident == "primary_key" {
+                                for ssql_tags in segments.iter() {
+                                    if ssql_tags.ident == "primary_key" {
                                         primary_key = Some(field.clone());
                                     }
                                 }
@@ -203,8 +203,8 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
 
                             if let Meta::NameValue(named_v) = meta {
                                 let Path { ref segments, .. } = &named_v.path;
-                                for rssql_tags in segments.iter() {
-                                    if rssql_tags.ident == "foreign_key" {
+                                for ssql_tags in segments.iter() {
+                                    if ssql_tags.ident == "foreign_key" {
                                         if let Expr::Lit(ExprLit { lit, .. }) = &named_v.value {
                                             if let Lit::Str(v) = lit {
                                                 let field_name = field.ident.as_ref().unwrap().to_string();
@@ -278,7 +278,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
 
     result.extend(quote! {
         #[async_trait(?Send)]
-        impl RssqlMarker for #struct_name {
+        impl SsqlMarker for #struct_name {
             fn table_name() -> &'static str {
                 #table_name
             }
@@ -299,7 +299,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                 }
             }
 
-            async fn insert_many(iter: impl IntoIterator<Item = #struct_name> , conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<u64>
+            async fn insert_many(iter: impl IntoIterator<Item = #struct_name> , conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>
             // where I:  impl Iterator<Item = #struct_name>
             {
                 let mut req = conn.bulk_insert(#table_name).await?;
@@ -312,19 +312,19 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                 Ok(res.total())
             }
 
-            async fn insert(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()> {
+            async fn insert(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()> {
                 let sql = format!("INSERT INTO {} ({}) values({})", #table_name, #builder_insert_fields, #builder_insert_params);
                 conn.execute(sql, &[#(#builder_insert_data,)*]).await?;
                 Ok(())
             }
 
-            async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()> {
+            async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()> {
                 let (pk, dt) = self.primary_key();
                 QueryBuilder::<#struct_name>::delete(&dt, #table_name, pk, conn).await?;
                 Ok(())
             }
 
-            async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()> {
+            async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()> {
                 let (pk, dt) = self.primary_key();
                 let sql = format!("UPDATE {} SET {} WHERE {} {}", #table_name, #builder_update_fields, pk, QueryBuilder::<#struct_name>::process_pk_condition(&dt));
                 conn.execute(sql, &[#(#builder_update_data,)*]).await?;

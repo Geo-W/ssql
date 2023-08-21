@@ -50,13 +50,13 @@ pub(crate) fn parse_table_name(attrs: &Vec<syn::Attribute>) -> String {
     let mut table: (String, String) = ("".to_string(), "".to_string());
     for attr in attrs.iter() {
         if let Some(ident) = attr.path().get_ident() {
-            if ident == "rssql" {
+            if ident == "ssql" {
                 if let Ok(list) = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated) {
                     for meta in list.iter() {
                         if let Meta::NameValue(named_v) = meta {
                             let Path { ref segments, .. } = &named_v.path;
-                            for rssql_segs in segments.iter() {
-                                if rssql_segs.ident == "table" {
+                            for ssql_segs in segments.iter() {
+                                if ssql_segs.ident == "table" {
                                     // let b = &named_v.value;
                                     if let Expr::Path(p_v) = &named_v.value {
                                         for seg in p_v.path.segments.iter() {
@@ -65,7 +65,7 @@ pub(crate) fn parse_table_name(attrs: &Vec<syn::Attribute>) -> String {
                                             // return i.to_string();
                                         }
                                     }
-                                } else if rssql_segs.ident == "schema" {
+                                } else if ssql_segs.ident == "schema" {
                                     if let Expr::Path(p_v) = &named_v.value {
                                         for seg in p_v.path.segments.iter() {
                                             let i = &seg.ident;

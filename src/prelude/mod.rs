@@ -1,8 +1,8 @@
 pub use rssql_macro::ORM;
 
 pub use crate::structs::querybuilder::QueryBuilder;
-pub use crate::structs::querybuilder::RssqlMarker;
-pub use crate::error::custom_error::RssqlResult;
+pub use crate::structs::querybuilder::SsqlMarker;
+pub use crate::error::custom_error::SsqlResult;
 
 pub use tiberius::{self, Row, Client, IntoRow, TokenRow, IntoSql, ColumnData, ToSql};
 pub use tokio::net::TcpStream;

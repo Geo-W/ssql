@@ -5,9 +5,9 @@ macro_rules! impl_get_data {
         pub async fn $func_name<$($T),*>(
             &mut self,
             conn: &mut tiberius::Client<Compat<TcpStream>>,
-        ) -> RssqlResult<($(Vec<$R_Ty>),*)>
+        ) -> SsqlResult<($(Vec<$R_Ty>),*)>
         where
-            $($T: RssqlMarker),*
+            $($T: SsqlMarker),*
         {
             let mut stream = self.execute(conn).await?;
             $(let mut $R: Vec<$R_Ty> = vec![];)*

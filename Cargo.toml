@@ -1,20 +1,20 @@
 [package]
-name = "rssql"
+name = "ssql"
 version = "0.1.0"
 edition = "2021"
 authors = ["Geo W"]
 description = "Async ms sql server basic orm"
 keywords = ["async", "database", "sqlserver", "orm", "tiberius"]
 license = "MIT/Apache-2.0"
-repository = "https://github.com/Geo-W/rssql"
+repository = "https://github.com/Geo-W/ssql"
 readme = "README.md"
 
 
 [features]
-polars = ["rssql-macro/polars", "dep:polars"]
+polars = ["ssql-macro/polars", "dep:polars"]
 
 [dependencies]
-rssql-macro = { version = "0.1.0", path = "rssql-macro" }
+ssql-macro = { version = "0.1.0", path = "ssql-macro" }
 tiberius = { version = "0.12.2", features = ["chrono"] }
 serde_json = "1.0.99"
 tokio = { version = "1.24.1", features = ["full"] }

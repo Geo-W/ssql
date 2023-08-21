@@ -11,9 +11,9 @@ use tokio_util::compat::Compat;
 
 use tiberius::{Client, ColumnData, QueryItem, QueryStream};
 
-use crate::error::custom_error::RssqlResult;
+use crate::error::custom_error::SsqlResult;
 
-pub struct QueryBuilder<T: RssqlMarker> {
+pub struct QueryBuilder<T: SsqlMarker> {
     pub(crate) fields: HashMap<&'static str, Vec<&'static str>>,
     pub(crate) filters: Vec<String>,
     pub(crate) join: String,
@@ -29,10 +29,10 @@ pub struct QueryBuilder<T: RssqlMarker> {
 }
 
 impl<T> QueryBuilder<T>
-where T: RssqlMarker
+where T: SsqlMarker
 {
     pub fn new<C>(fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str) -> QueryBuilder<C>
-    where C: RssqlMarker
+    where C: SsqlMarker
     {
         QueryBuilder {
             fields: HashMap::from([fields]),
@@ -51,7 +51,7 @@ where T: RssqlMarker
     }
 
     fn join<B>(mut self, join_type: &str) -> QueryBuilder<T>
-        where B: RssqlMarker {
+        where B: SsqlMarker {
         let name = B::table_name();
         let fields = B::fields();
         let relation = self.find_relation(&name);
@@ -66,22 +66,22 @@ where T: RssqlMarker
     }
 
     pub fn left_join<B>(self) -> QueryBuilder<T>
-        where B: RssqlMarker {
+        where B: SsqlMarker {
         self.join::<B>("LEFT")
     }
 
     pub fn right_join<B>(self) -> QueryBuilder<T>
-        where B: RssqlMarker {
+        where B: SsqlMarker {
         self.join::<B>("RIGHT")
     }
 
     pub fn inner_join<B>(self) -> QueryBuilder<T>
-        where B: RssqlMarker {
+        where B: SsqlMarker {
         self.join::<B>("INNER")
     }
 
     pub fn outer_join<B>(self) -> QueryBuilder<T>
-        where B: RssqlMarker {
+        where B: SsqlMarker {
         self.join::<B>("OUTER")
     }
 
@@ -113,7 +113,7 @@ where T: RssqlMarker
     crate::impl_get_dataframe!(get_dataframe_5, get_struct_5, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame, E, ret5, DataFrame]);
 
 
-    async fn execute<'a>(&mut self, conn: &'a mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<QueryStream<'a>> {
+    async fn execute<'a>(&mut self, conn: &'a mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<QueryStream<'a>> {
         let sql = self.fields.iter()
             .map(|(table, fields)|
                 fields.iter().map(|field| format!(r#"{}.{} as "{}.{}""#, table, field, table, field))
@@ -160,7 +160,7 @@ where T: RssqlMarker
         }
     }
 
-    pub async fn delete(dt: &ColumnData<'_>, table: &'static str, pk: &'static str, conn: &mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<()> {
+    pub async fn delete(dt: &ColumnData<'_>, table: &'static str, pk: &'static str, conn: &mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<()> {
         let condition = Self::process_pk_condition(&dt);
         conn.execute(format!("DELETE FROM {} WHERE {} {}", table, pk, condition), &[]).await?;
         Ok(())
@@ -169,15 +169,15 @@ where T: RssqlMarker
 
 
 #[async_trait(? Send)]
-pub trait RssqlMarker: Sized {
+pub trait SsqlMarker: Sized {
     fn table_name() -> &'static str;
     fn fields() -> Vec<&'static str>;
     fn row_to_json(row: &tiberius::Row) -> Map<String, Value>;
     fn row_to_struct(row: &tiberius::Row) -> Self;
-    async fn insert_many(iter: impl IntoIterator<Item=Self>, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<u64>;
-    async fn insert(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()>;
-    async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()>;
-    async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> RssqlResult<()>;
+    async fn insert_many(iter: impl IntoIterator<Item=Self>, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>;
+    async fn insert(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
+    async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
+    async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
 }
 
 #[cfg(feature = "polars")]

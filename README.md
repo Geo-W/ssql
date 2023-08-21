@@ -5,27 +5,27 @@ For now only the basic function is accomplished, check it out below.
 ### Usage:
 
 ```rust
-use rssql::prelude::*;
+use ssql::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(ORM, Debug, Default, Serialize, Deserialize)]
-#[rssql(table = Person, schema = SCHEMA1)] // default schema
+#[ssql(table = Person, schema = SCHEMA1)] // default schema
 struct Person {
-    #[rssql(primary_key)]
+    #[ssql(primary_key)]
     id: i32,
     email: Option<String>, // wrap nullable column in option
 }
 
 #[derive(ORM, Debug, Default, Serialize, Deserialize)]
-#[rssql(table = Posts)] // other schema
+#[ssql(table = Posts)] // other schema
 struct Posts {
     id: i32,
     post: String,
-    #[rssql(foreign_key = "SCHEMA1.Person.id")] // if it belongs to default schema, just write TABLE.COLUMN
+    #[ssql(foreign_key = "SCHEMA1.Person.id")] // if it belongs to default schema, just write TABLE.COLUMN
     person_id: i32,
 }
 
-async fn get<'a>(client: &'a mut tiberius::Client<Compat<TcpStream>>) -> RssqlResult<()> {
+async fn get<'a>(client: &'a mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<()> {
     let mut query = Person::query()
         .join::<Posts>();
 
@@ -48,7 +48,7 @@ async fn get<'a>(client: &'a mut tiberius::Client<Compat<TcpStream>>) -> RssqlRe
     new_p.insert(&mut client);
 
     // delete it based on its primary key mark.
-    // like here i mark id with #[rssql(primary_key)]
+    // like here i mark id with #[ssql(primary_key)]
     new_p.delete(&mut client);
 
     // update it based on its primary key mark.

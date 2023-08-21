@@ -5,7 +5,7 @@ mod tests {
     use tokio::net::TcpStream;
     use tokio_util::compat::Compat;
 
-    use rssql::prelude::*;
+    use ssql::prelude::*;
     use tiberius::Client;
 
     #[cfg(feature = "polars")]
@@ -44,21 +44,21 @@ mod tests {
     }
 
     pub async fn get_client() -> Client<Compat<TcpStream>> {
-        rssql::utils::get_client("username", "password", "host", "database").await
+        ssql::utils::get_client("username", "password", "host", "database").await
     }
 
     #[derive(ORM, Debug, Default)]
-    #[rssql(table = CUSTOMER_LIST, schema = MASTER_DATA)]
+    #[ssql(table = CUSTOMER_LIST, schema = MASTER_DATA)]
     pub struct Customerlist {
         pub(crate) ship_to_id: Option<String>,
-        #[rssql(foreign_key = "DALI_DATA.SLOW_MOVING.stock_in_day")]
+        #[ssql(foreign_key = "DALI_DATA.SLOW_MOVING.stock_in_day")]
         pub(crate) ship_to: Option<String>,
         pub(crate) volume: Option<i32>,
         pub(crate) container: Option<String>,
     }
 
     #[derive(ORM, Debug, Default)]
-    #[rssql(table = SLOW_MOVING, schema = DALI_DATA)]
+    #[ssql(table = SLOW_MOVING, schema = DALI_DATA)]
     pub struct Test {
         pub(crate) stock_in_day: Option<String>,
         pub(crate) total_value: Option<f64>,
@@ -67,14 +67,14 @@ mod tests {
     }
 
     #[derive(ORM, Debug, Default)]
-    #[rssql(table = Person)]
+    #[ssql(table = Person)]
     pub struct Person {
         pub(crate) id: i32,
         pub(crate) Email: String,
     }
 
     #[derive(ORM, Debug, Default)]
-    #[rssql(table = FORECAST, schema = UPDATED_DATA)]
+    #[ssql(table = FORECAST, schema = UPDATED_DATA)]
     pub struct Fcst {
         pub(crate) Customer: Option<String>,
         pub(crate) Material: Option<String>,
@@ -85,7 +85,7 @@ mod tests {
     }
 
     // #[derive(ORM, Debug, Default)]
-    // #[rssql(table = SA)]
+    // #[ssql(table = SA)]
     // pub struct Sa {
     //     sa_qty: i64,
     //     material: String,

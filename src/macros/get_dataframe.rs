@@ -6,9 +6,9 @@ macro_rules! impl_get_dataframe {
         pub async fn $func_name<$($T),*>(
             &mut self,
             conn: &mut tiberius::Client<Compat<TcpStream>>,
-        ) -> RssqlResult<($($R_Ty),*)>
+        ) -> SsqlResult<($($R_Ty),*)>
         where
-            $($T: RssqlMarker + PolarsHelper),*
+            $($T: SsqlMarker + PolarsHelper),*
         {
             let ($($R),*) = self.$get_struct_func::<$($T),*>(conn).await?;
             Ok(($($T::dataframe($R)?),*))
