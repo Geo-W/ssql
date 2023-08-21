@@ -23,16 +23,15 @@ pub struct QueryBuilder<T: SsqlMarker> {
     // relation_func: Box<dyn Fn(&str) -> &'static str>,
     relation_func: fn(&str) -> &'static str,
 
-    _marker: Option<PhantomData<T>>
+    _marker: Option<PhantomData<T>>,
     // mapper from table name to select row func
-
 }
 
 impl<T> QueryBuilder<T>
-where T: SsqlMarker
+    where T: SsqlMarker
 {
     pub fn new<C>(fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str) -> QueryBuilder<C>
-    where C: SsqlMarker
+        where C: SsqlMarker
     {
         QueryBuilder {
             fields: HashMap::from([fields]),
@@ -41,7 +40,7 @@ where T: SsqlMarker
             join: String::new(),
             relation_func: func,
             sql: "".to_string(),
-            _marker: None
+            _marker: None,
         }
     }
 
@@ -154,8 +153,132 @@ where T: SsqlMarker
                     }
                 }
             }
-            _ => {
-                unimplemented!()
+            ColumnData::I16(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        format!(" = {} ", v)
+                    }
+                }
+            }
+            ColumnData::F32(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        format!(" = {} ", v)
+                    }
+                }
+            }
+            ColumnData::F64(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        format!(" = {} ", v)
+                    }
+                }
+            }
+            ColumnData::Bit(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        format!(" = {} ", v)
+                    }
+                }
+            }
+            ColumnData::String(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        format!(" = {} ", v)
+                    }
+                }
+            }
+            ColumnData::Guid(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        format!(" = {} ", v)
+                    }
+                }
+            }
+            ColumnData::Binary(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        format!(" = {} ", String::from_utf8(v.to_vec()).unwrap())
+                    }
+                }
+            }
+            ColumnData::Numeric(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        format!(" = {} ", v)
+                    }
+                }
+            }
+            ColumnData::Xml(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        // format!(" = {} ", v)
+                        // TODO!
+                    }
+                }
+            }
+            ColumnData::DateTime(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        // format!(" = {} ", v)
+                        // TODO!
+                    }
+                }
+            }
+            ColumnData::SmallDateTime(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        // format!(" = {} ", v)
+                        // TODO!
+                    }
+                }
+            }
+            ColumnData::Time(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        // format!(" = {} ", v)
+                        // TODO!
+                    }
+                }
+            }
+            ColumnData::Date(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        // format!(" = {} ", v)
+                        // TODO!
+                    }
+                }
+            }
+            ColumnData::DateTime2(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        // format!(" = {} ", v)
+                        // TODO!
+                    }
+                }
+            }
+            ColumnData::DateTimeOffset(v) => {
+                match v {
+                    None => { " is null ".to_string() }
+                    Some(v) => {
+                        // format!(" = {} ", v)
+                        // TODO!
+                    }
+                }
             }
         }
     }
