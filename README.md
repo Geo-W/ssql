@@ -3,7 +3,7 @@
 This crate is still under construction, apis may subject to change.   
 For now only the basic function is accomplished, check it out below.
 ### Usage:
-
+> When defining structs, make sure keep the field sequence consistent with the sequence in database as bulk insert(insert_many) depends on it. 
 ```rust
 use ssql::prelude::*;
 use serde::{Deserialize, Serialize};

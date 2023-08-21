@@ -220,7 +220,7 @@ impl<T> QueryBuilder<T>
             ColumnData::Xml(v) => {
                 match v {
                     None => { " is null ".to_string() }
-                    Some(v) => {
+                    Some(_) => {
                         "TODO".to_string()
                         // TODO!
                     }
@@ -229,7 +229,7 @@ impl<T> QueryBuilder<T>
             ColumnData::DateTime(v) => {
                 match v {
                     None => { " is null ".to_string() }
-                    Some(v) => {
+                    Some(_) => {
                         "TODO".to_string()
                         // TODO!
                     }
@@ -238,7 +238,7 @@ impl<T> QueryBuilder<T>
             ColumnData::SmallDateTime(v) => {
                 match v {
                     None => { " is null ".to_string() }
-                    Some(v) => {
+                    Some(_) => {
                         "TODO".to_string()
                         // TODO!
                     }
@@ -247,7 +247,7 @@ impl<T> QueryBuilder<T>
             ColumnData::Time(v) => {
                 match v {
                     None => { " is null ".to_string() }
-                    Some(v) => {
+                    Some(_) => {
                         "TODO".to_string()
                         // TODO!
                     }
@@ -256,7 +256,7 @@ impl<T> QueryBuilder<T>
             ColumnData::Date(v) => {
                 match v {
                     None => { " is null ".to_string() }
-                    Some(v) => {
+                    Some(_) => {
                         "TODO".to_string()
                         // TODO!
                     }
@@ -265,7 +265,7 @@ impl<T> QueryBuilder<T>
             ColumnData::DateTime2(v) => {
                 match v {
                     None => { " is null ".to_string() }
-                    Some(v) => {
+                    Some(_) => {
                         "TODO".to_string()
                         // TODO!
                     }
@@ -274,7 +274,7 @@ impl<T> QueryBuilder<T>
             ColumnData::DateTimeOffset(v) => {
                 match v {
                     None => { " is null ".to_string() }
-                    Some(v) => {
+                    Some(_) => {
                         "TODO".to_string()
                         // TODO!
                     }
