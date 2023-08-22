@@ -12,10 +12,11 @@ readme = "README.md"
 
 [features]
 polars = ["ssql-macro/polars", "dep:polars"]
+chrono = ["tiberius/chrono", "dep:chrono"]
 
 [dependencies]
 ssql-macro = { version = "0.1.0", path = "ssql-macro" }
-tiberius = { version = "0.12.2", features = ["chrono"] }
+tiberius = { version = "0.12.2"}
 serde_json = "1.0.99"
 tokio = { version = "1.24.1", features = ["full"] }
 tokio-util = { version = "0.7.4", features = ["full"] }
@@ -27,6 +28,11 @@ async-trait = "0.1.68"
 version = "0.31.0"
 optional = true
 #default-features = false
+
+[dependencies.chrono]
+version = "0.4.26"
+optional = true
+features = ["serde"]
 
 [dev-dependencies]
 deadpool-tiberius = "0.1.3"

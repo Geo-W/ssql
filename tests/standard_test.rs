@@ -65,14 +65,14 @@ mod tests {
 
 
     #[tokio::test]
-    async fn raw_query() {
+    async fn raw_query_and_chrono() {
         use chrono;
         let mut conn = get_client().await;
-        // let now = chrono::NaiveDateTime::new(
-        //     NaiveDate::from_ymd_opt(2022,5,5).unwrap(),
-        //     NaiveTime::from_hms_micro_opt(1,1,1,1).unwrap()
-        // );
-        let m = PersonRaw::query().raw("SELECT * FROM Person where id = @p1", &[&0]).get_struct::<PersonRaw>(&mut conn).await;
+        let now = chrono::NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2022,5,5).unwrap(),
+            NaiveTime::from_hms_micro_opt(1,1,1,0).unwrap()
+        );
+        let m = PersonRaw::query().raw("SELECT * FROM Person where dt = @p1", &[&now]).get_struct::<PersonRaw>(&mut conn).await;
         assert_eq!(m.is_ok(), true);
     }
 
