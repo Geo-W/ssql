@@ -9,28 +9,26 @@ use serde_json::{Map, Value};
 use tokio::net::TcpStream;
 use tokio_util::compat::Compat;
 
-use tiberius::{Client, ColumnData, QueryItem, QueryStream};
+use tiberius::{Client, ColumnData, QueryItem, QueryStream, ToSql};
 
 use crate::error::custom_error::SsqlResult;
 
-pub struct QueryBuilder<T: SsqlMarker> {
+pub struct QueryBuilder<'a, T: SsqlMarker> {
     pub(crate) fields: HashMap<&'static str, Vec<&'static str>>,
     pub(crate) filters: Vec<String>,
     pub(crate) join: String,
     tables: HashSet<&'static str>,
-    // pub query_result: HashMap<&'static str, Vec<Value>>,
-    sql: String,
-    // relation_func: Box<dyn Fn(&str) -> &'static str>,
+    raw_sql: Option<String>,
     relation_func: fn(&str) -> &'static str,
+    query_params: &'a [&'a dyn ToSql],
 
     _marker: Option<PhantomData<T>>,
-    // mapper from table name to select row func
 }
 
-impl<T> QueryBuilder<T>
+impl<'a, T> QueryBuilder<'a, T>
     where T: SsqlMarker
 {
-    pub fn new<C>(fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str) -> QueryBuilder<C>
+    pub fn new<'b :'a, C>(fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str) -> QueryBuilder<'b, C>
         where C: SsqlMarker
     {
         QueryBuilder {
@@ -39,8 +37,9 @@ impl<T> QueryBuilder<T>
             tables: HashSet::new(),
             join: String::new(),
             relation_func: func,
-            sql: "".to_string(),
+            raw_sql: None,
             _marker: None,
+            query_params: &[],
         }
     }
 
@@ -49,7 +48,7 @@ impl<T> QueryBuilder<T>
         self
     }
 
-    fn join<B>(mut self, join_type: &str) -> QueryBuilder<T>
+    fn join<B>(mut self, join_type: &str) -> QueryBuilder<'a, T>
         where B: SsqlMarker {
         let name = B::table_name();
         let fields = B::fields();
@@ -64,22 +63,22 @@ impl<T> QueryBuilder<T>
         self
     }
 
-    pub fn left_join<B>(self) -> QueryBuilder<T>
+    pub fn left_join<B>(self) -> QueryBuilder<'a, T>
         where B: SsqlMarker {
         self.join::<B>("LEFT")
     }
 
-    pub fn right_join<B>(self) -> QueryBuilder<T>
+    pub fn right_join<B>(self) -> QueryBuilder<'a, T>
         where B: SsqlMarker {
         self.join::<B>("RIGHT")
     }
 
-    pub fn inner_join<B>(self) -> QueryBuilder<T>
+    pub fn inner_join<B>(self) -> QueryBuilder<'a, T>
         where B: SsqlMarker {
         self.join::<B>("INNER")
     }
 
-    pub fn outer_join<B>(self) -> QueryBuilder<T>
+    pub fn outer_join<B>(self) -> QueryBuilder<'a, T>
         where B: SsqlMarker {
         self.join::<B>("OUTER")
     }
@@ -88,8 +87,9 @@ impl<T> QueryBuilder<T>
         (self.relation_func)(table)
     }
 
-    pub fn raw(mut self, sql: &str) -> Self {
-        self.sql = sql.to_string();
+    pub fn raw<'b: 'a>(mut self, sql: impl ToString, params: &'b [&'b dyn ToSql]) -> Self {
+        self.raw_sql = Some(sql.to_string());
+        self.query_params = params;
         self
     }
 
@@ -112,8 +112,8 @@ impl<T> QueryBuilder<T>
     crate::impl_get_dataframe!(get_dataframe_5, get_struct_5, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame, E, ret5, DataFrame]);
 
 
-    async fn execute<'a>(&mut self, conn: &'a mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<QueryStream<'a>> {
-        let sql = self.fields.iter()
+    async fn execute<'b>(&self, conn: &'b mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<QueryStream<'b>> {
+        let select_fields = self.fields.iter()
             .map(|(table, fields)|
                 fields.iter().map(|field| format!(r#"{}.{} as "{}.{}""#, table, field, table, field))
                     .reduce(|cur, nxt| format!("{},{}", cur, nxt)).unwrap()
@@ -122,8 +122,15 @@ impl<T> QueryBuilder<T>
 
         // let mut stream = conn.simple_query(r#"SELECT ship_to_id as "CUSTOMER_LIST.ship_to_id", ship_to as "CUSTOMER_LIST.ship_to",
         // volume as "CUSTOMER_LIST.volume", container as "CUSTOMER_LIST.container" FROM CUSTOMER_LIST"#).await.unwrap();
-        dbg!(format!("SELECT {} FROM {} {} ", sql, T::table_name(), self.join));
-        let stream = conn.simple_query(format!("SELECT {} FROM {} {} ", sql, T::table_name(), self.join)).await?;
+        dbg!(format!("SELECT {} FROM {} {} ", select_fields, T::table_name(), self.join));
+        let stream = conn.query(match &self.raw_sql {
+            None => {
+                format!("SELECT {} FROM {} {} ", select_fields, T::table_name(), self.join)
+            }
+            Some(v) => {
+                v.to_string()
+            }
+        }, self.query_params).await?;
         Ok(stream)
     }
 

@@ -80,8 +80,10 @@ pub(crate) fn parse_table_name(attrs: &Vec<syn::Attribute>) -> String {
             }
         }
     }
+
+    // match table_name, schema
     match (table.0.as_str(), table.1.as_str()) {
-        ("", _) => unimplemented!(),
+        // ("", _) => unimplemented!(),
         (_, "") => table.0,
         _ => format!("{}.{}", table.1, table.0)
     }

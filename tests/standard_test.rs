@@ -1,6 +1,7 @@
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
+    use chrono::{NaiveDate, NaiveTime, NaiveDateTime};
     use serde::{Deserialize, Serialize};
     use tiberius::Client;
     use tokio::net::TcpStream;
@@ -63,6 +64,18 @@ mod tests {
     }
 
 
+    #[tokio::test]
+    async fn raw_query() {
+        use chrono;
+        let mut conn = get_client().await;
+        // let now = chrono::NaiveDateTime::new(
+        //     NaiveDate::from_ymd_opt(2022,5,5).unwrap(),
+        //     NaiveTime::from_hms_micro_opt(1,1,1,1).unwrap()
+        // );
+        let m = PersonRaw::query().raw("SELECT * FROM Person where id = @p1", &[&0]).get_struct::<PersonRaw>(&mut conn).await;
+        assert_eq!(m.is_ok(), true);
+    }
+
     pub async fn get_client() -> Client<Compat<TcpStream>> {
         ssql::utils::get_client("username", "password", "host", "database").await
     }
@@ -94,6 +107,14 @@ mod tests {
         pub(crate) Email: String,
     }
 
+    #[derive(ORM, Debug, Default, Serialize, Deserialize)]
+    #[ssql(table)]
+    pub struct PersonRaw {
+        #[ssql(primary_key)]
+        pub(crate) id: i32,
+        pub(crate) Email: String,
+        dt: Option<NaiveDateTime>
+    }
 
     #[derive(ORM, Debug, Default)]
     #[ssql(table = FORECAST)]
@@ -106,18 +127,5 @@ mod tests {
         Plant: Option<String>,
     }
 
-
-    // #[derive(ORM, Debug, Default)]
-    // #[ssql(table = SA)]
-    // pub struct Sa {
-    //     sa_qty: i64,
-    //     material: String,
-    //     description: String,
-    //     eta: String,
-    //     vendor: String,
-    //     vendor_id: String,
-    //     planner: String,
-    //     Generated_Time: NaiveDateTime,
-    // }
 }
 

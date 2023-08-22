@@ -53,7 +53,10 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
 
     let builder_row_func = fields.iter().map(|f| {
         let mn = f.clone().ident.unwrap().to_string();
-        let field_name = format!("{}.{}", &table_name, &mn);
+        let field_name = match table_name.as_str() {
+            "" => format!("{}", &mn),
+            _ => format!("{}.{}", &table_name, &mn)
+        };
         let ty = &f.ty;
         let ty = match extract_type_from_option(ty) {
             Some(value) => value,
@@ -144,7 +147,10 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
     // for getting vectors of self struct
     let builder_row_to_self_func = fields.iter().map(|f| {
         let mn = f.clone().ident.unwrap();
-        let field_name = format!("{}.{}", &table_name, &mn.to_string());
+        let field_name = match table_name.as_str() {
+            "" => format!("{}", &mn),
+            _ => format!("{}.{}", &table_name, &mn)
+        };
         let ty = &f.ty;
         return match extract_type_from_option(ty) {
             Some(value) => {
@@ -348,7 +354,7 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                 }
             }
 
-            pub fn query() -> QueryBuilder<#struct_name> {
+            pub fn query<'a>() -> QueryBuilder<'a, #struct_name> {
                 QueryBuilder::<#struct_name>::new(
                     (#table_name, #struct_name::fields()),
                     #struct_name::relationship)

@@ -66,6 +66,22 @@ async fn get<'a>(client: &'a mut tiberius::Client<Compat<TcpStream>>) -> SsqlRes
         email: email.to_string(),
     });
     Person::insert_many(it, &mut client);
+    
+    // structs reflecting complex raw query 
+    // leave the table attribute empty
+    #[derive(ORM, Debug, Default, Serialize, Deserialize)]
+    #[ssql(table)] 
+    pub struct PersonRaw {
+        #[ssql(primary_key)]
+        pub(crate) id: i32,
+        pub(crate) email: String,
+        dt: Option<NaiveDateTime>
+    }
+
+    let query = PersonRaw::query()
+        .raw("SELECT * FROM Person where id = @p1", &[&1]);
+    
+    let data = query.get_struct::<PersonRaw>(&mut client).await;
 }
 
 
