@@ -16,25 +16,14 @@ use crate::utils::{
 
 mod utils;
 
-// use proc_macro2::{Span, TokenTree};
-// use proc_macro2::TokenTree::Group;
-// use proc_macro2::Ident;
-// use syn::{parse_macro_input, DeriveInput};
-// use syn::token::Token;
 
 
 #[proc_macro_derive(ORM, attributes(ssql))]
 pub fn show_streams(tokens: TokenStream) -> TokenStream {
-    // println!("attr: \"{}\"", attr.to_string());
-    println!("item: \"{}\"", tokens.to_string());
-    // let t: proc_macro2::TokenStream = tokens.clone().into();
     let ast: syn::DeriveInput = syn::parse(tokens).unwrap();
-    // let struct_name = ast.ident;
     let table_name = parse_table_name(&ast.attrs);
     let struct_name = ast.ident;
 
-    // println!("attrs: {:?}", ast.attrs);
-    // println!("data: {:?}", ast.data);
 
     let fields = match ast.data {
         Struct(DataStruct { fields: Named(FieldsNamed { ref named, .. }), .. }) => named,

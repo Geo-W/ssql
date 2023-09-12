@@ -122,7 +122,6 @@ impl<'a, T> QueryBuilder<'a, T>
 
         // let mut stream = conn.simple_query(r#"SELECT ship_to_id as "CUSTOMER_LIST.ship_to_id", ship_to as "CUSTOMER_LIST.ship_to",
         // volume as "CUSTOMER_LIST.volume", container as "CUSTOMER_LIST.container" FROM CUSTOMER_LIST"#).await.unwrap();
-        dbg!(format!("SELECT {} FROM {} {} ", select_fields, T::table_name(), self.join));
         let stream = conn.query(match &self.raw_sql {
             None => {
                 format!("SELECT {} FROM {} {} ", select_fields, T::table_name(), self.join)
