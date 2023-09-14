@@ -1,6 +1,6 @@
 [package]
 name = "ssql"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 authors = ["Geo W"]
 description = "Async ms sql server basic orm"

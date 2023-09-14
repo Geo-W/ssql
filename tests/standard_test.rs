@@ -72,7 +72,8 @@ mod tests {
             NaiveDate::from_ymd_opt(2022,5,5).unwrap(),
             NaiveTime::from_hms_micro_opt(1,1,1,0).unwrap()
         );
-        let m = PersonRaw::query().raw("SELECT * FROM Person where dt = @p1", &[&now]).get_struct::<PersonRaw>(&mut conn).await;
+        let mut m = PersonRaw::query().raw("SELECT * FROM Person where dt = @p1", &[&now]);
+        let m = m.get_struct::<PersonRaw>(&mut conn).await;
         assert_eq!(m.is_ok(), true);
     }
 

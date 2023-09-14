@@ -20,7 +20,7 @@ pub struct QueryBuilder<'a, T: SsqlMarker> {
     tables: HashSet<&'static str>,
     raw_sql: Option<String>,
     relation_func: fn(&str) -> &'static str,
-    query_params: &'a [&'a dyn ToSql],
+    query_params: Vec<&'a dyn ToSql>,
 
     _marker: Option<PhantomData<T>>,
 }
@@ -39,7 +39,7 @@ impl<'a, T> QueryBuilder<'a, T>
             relation_func: func,
             raw_sql: None,
             _marker: None,
-            query_params: &[],
+            query_params: vec![],
         }
     }
 
@@ -87,9 +87,11 @@ impl<'a, T> QueryBuilder<'a, T>
         (self.relation_func)(table)
     }
 
-    pub fn raw<'b: 'a>(mut self, sql: impl ToString, params: &'b [&'b dyn ToSql]) -> Self {
+    pub fn raw<'b: 'a>(mut self, sql: impl ToString, params:&[&'b dyn ToSql]) -> Self {
         self.raw_sql = Some(sql.to_string());
-        self.query_params = params;
+        for p in params{
+            self.query_params.push(*p);
+        }
         self
     }
 
@@ -129,7 +131,7 @@ impl<'a, T> QueryBuilder<'a, T>
             Some(v) => {
                 v.to_string()
             }
-        }, self.query_params).await?;
+        }, self.query_params.as_slice()).await?;
         Ok(stream)
     }
 
@@ -303,6 +305,7 @@ pub trait SsqlMarker: Sized {
     fn fields() -> Vec<&'static str>;
     fn row_to_json(row: &tiberius::Row) -> Map<String, Value>;
     fn row_to_struct(row: &tiberius::Row) -> Self;
+    fn query<'a>() -> QueryBuilder<'a, Self>;
     async fn insert_many(iter: impl IntoIterator<Item=Self>, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>;
     async fn insert(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
     async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;

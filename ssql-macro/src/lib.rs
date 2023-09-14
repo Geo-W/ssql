@@ -19,7 +19,7 @@ mod utils;
 
 
 #[proc_macro_derive(ORM, attributes(ssql))]
-pub fn show_streams(tokens: TokenStream) -> TokenStream {
+pub fn ssql(tokens: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(tokens).unwrap();
     let table_name = parse_table_name(&ast.attrs);
     let struct_name = ast.ident;
@@ -294,6 +294,12 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                 }
             }
 
+            fn query<'a>() -> QueryBuilder<'a, #struct_name> {
+                QueryBuilder::<#struct_name>::new(
+                    (#table_name, #struct_name::fields()),
+                    #struct_name::relationship)
+            }
+
             async fn insert_many(iter: impl IntoIterator<Item = #struct_name> , conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>
             // where I:  impl Iterator<Item = #struct_name>
             {
@@ -341,12 +347,6 @@ pub fn show_streams(tokens: TokenStream) -> TokenStream {
                     #(#builder_types,)*
                     _ =>  unimplemented!("column_type not found"),
                 }
-            }
-
-            pub fn query<'a>() -> QueryBuilder<'a, #struct_name> {
-                QueryBuilder::<#struct_name>::new(
-                    (#table_name, #struct_name::fields()),
-                    #struct_name::relationship)
             }
 
         }
