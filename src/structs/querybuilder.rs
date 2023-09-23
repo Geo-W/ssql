@@ -11,7 +11,7 @@ use tokio_util::compat::Compat;
 
 use tiberius::{Client, ColumnData, QueryItem, QueryStream, ToSql};
 
-use crate::error::custom_error::SsqlResult;
+use crate::error::custom_error::{SsqlError, SsqlResult};
 
 pub struct QueryBuilder<'a, T: SsqlMarker> {
     pub(crate) fields: HashMap<&'static str, Vec<&'static str>>,
@@ -28,7 +28,7 @@ pub struct QueryBuilder<'a, T: SsqlMarker> {
 impl<'a, T> QueryBuilder<'a, T>
     where T: SsqlMarker
 {
-    pub fn new<'b :'a, C>(fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str) -> QueryBuilder<'b, C>
+    pub fn new<'b : 'a, C>(fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str) -> QueryBuilder<'b, C>
         where C: SsqlMarker
     {
         QueryBuilder {
@@ -87,9 +87,9 @@ impl<'a, T> QueryBuilder<'a, T>
         (self.relation_func)(table)
     }
 
-    pub fn raw<'b: 'a>(mut self, sql: impl ToString, params:&[&'b dyn ToSql]) -> Self {
+    pub fn raw<'b: 'a>(mut self, sql: impl ToString, params: &[&'b dyn ToSql]) -> Self {
         self.raw_sql = Some(sql.to_string());
-        for p in params{
+        for p in params {
             self.query_params.push(*p);
         }
         self
@@ -135,165 +135,8 @@ impl<'a, T> QueryBuilder<'a, T>
         Ok(stream)
     }
 
-    pub fn process_pk_condition(dt: &ColumnData<'_>) -> String {
-        match dt {
-            ColumnData::U8(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(v) => {
-                        format!(" = {} ", v)
-                    }
-                }
-            }
-            ColumnData::I32(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(v) => {
-                        format!(" = {} ", v)
-                    }
-                }
-            }
-            ColumnData::I64(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(v) => {
-                        format!(" = {} ", v)
-                    }
-                }
-            }
-            ColumnData::I16(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(v) => {
-                        format!(" = {} ", v)
-                    }
-                }
-            }
-            ColumnData::F32(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(v) => {
-                        format!(" = {} ", v)
-                    }
-                }
-            }
-            ColumnData::F64(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(v) => {
-                        format!(" = {} ", v)
-                    }
-                }
-            }
-            ColumnData::Bit(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(v) => {
-                        format!(" = {} ", v)
-                    }
-                }
-            }
-            ColumnData::String(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(v) => {
-                        format!(" = {} ", v)
-                    }
-                }
-            }
-            ColumnData::Guid(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(v) => {
-                        format!(" = {} ", v)
-                    }
-                }
-            }
-            ColumnData::Binary(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(v) => {
-                        format!(" = {} ", String::from_utf8(v.to_vec()).unwrap())
-                    }
-                }
-            }
-            ColumnData::Numeric(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(v) => {
-                        format!(" = {} ", v)
-                    }
-                }
-            }
-            ColumnData::Xml(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(_) => {
-                        "TODO".to_string()
-                        // TODO!
-                    }
-                }
-            }
-            ColumnData::DateTime(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(_) => {
-                        "TODO".to_string()
-                        // TODO!
-                    }
-                }
-            }
-            ColumnData::SmallDateTime(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(_) => {
-                        "TODO".to_string()
-                        // TODO!
-                    }
-                }
-            }
-            ColumnData::Time(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(_) => {
-                        "TODO".to_string()
-                        // TODO!
-                    }
-                }
-            }
-            ColumnData::Date(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(_) => {
-                        "TODO".to_string()
-                        // TODO!
-                    }
-                }
-            }
-            ColumnData::DateTime2(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(_) => {
-                        "TODO".to_string()
-                        // TODO!
-                    }
-                }
-            }
-            ColumnData::DateTimeOffset(v) => {
-                match v {
-                    None => { " is null ".to_string() }
-                    Some(_) => {
-                        "TODO".to_string()
-                        // TODO!
-                    }
-                }
-            }
-        }
-    }
-
-    pub async fn delete(dt: &ColumnData<'_>, table: &'static str, pk: &'static str, conn: &mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<()> {
-        let condition = Self::process_pk_condition(&dt);
-        conn.execute(format!("DELETE FROM {} WHERE {} {}", table, pk, condition), &[]).await?;
+    pub async fn delete(dt: &dyn ToSql, pk: &'static str, conn: &mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<()> {
+        conn.execute(format!("DELETE FROM {} WHERE {} = @p1", T::table_name(), pk), &[dt]).await?;
         Ok(())
     }
 }

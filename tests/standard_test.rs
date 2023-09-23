@@ -36,7 +36,7 @@ mod tests {
     async fn insert_one() {
         let mut conn = get_client().await;
         let item = Person {
-            id: 99,
+            id: 1,
             Email: "".to_string(),
         };
         let ret = item.insert(&mut conn).await;
@@ -46,7 +46,7 @@ mod tests {
     #[tokio::test]
     async fn delete() {
         let p = Person {
-            id: 0,
+            id: 1,
             Email: "".to_string(),
         };
         let mut conn = get_client().await;
@@ -60,7 +60,7 @@ mod tests {
             Email: "".to_string(),
         };
         let mut conn = get_client().await;
-        assert_eq!(p.delete(&mut conn).await.is_ok(), true);
+        assert_eq!(p.update(&mut conn).await.is_ok(), true);
     }
 
 
@@ -72,7 +72,7 @@ mod tests {
             NaiveDate::from_ymd_opt(2022,5,5).unwrap(),
             NaiveTime::from_hms_micro_opt(1,1,1,0).unwrap()
         );
-        let mut m = PersonRaw::query().raw("SELECT * FROM Person where dt = @p1", &[&now]);
+        let mut m = PersonRaw::query().raw("SELECT * FROM Person where id = @p1", &[&"asdf"]);
         let m = m.get_struct::<PersonRaw>(&mut conn).await;
         assert_eq!(m.is_ok(), true);
     }

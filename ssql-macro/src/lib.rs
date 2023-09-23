@@ -255,15 +255,15 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
         let mn = f.ident.unwrap();
         quote! {
             impl #struct_name {
-                fn primary_key(&self) -> (&'static str, ColumnData) {
-                    (#field_name, self.#mn.to_sql())
+                fn primary_key(&self) -> (&'static str, &dyn ToSql) {
+                    (#field_name, &self.#mn)
                 }
             }
         }
     } else {
         quote! {
             impl #struct_name {
-                fn primary_key(&self) -> (&'static str, ColumnData) {
+                fn primary_key(&self) -> (&'static str, &dyn ToSql) {
                     unimplemented!("Primary key not set");
                 }
             }
@@ -321,14 +321,14 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
 
             async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()> {
                 let (pk, dt) = self.primary_key();
-                QueryBuilder::<#struct_name>::delete(&dt, #table_name, pk, conn).await?;
+                QueryBuilder::<#struct_name>::delete(dt, pk, conn).await?;
                 Ok(())
             }
 
             async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()> {
                 let (pk, dt) = self.primary_key();
-                let sql = format!("UPDATE {} SET {} WHERE {} {}", #table_name, #builder_update_fields, pk, QueryBuilder::<#struct_name>::process_pk_condition(&dt));
-                conn.execute(sql, &[#(#builder_update_data,)*]).await?;
+                let sql = format!("UPDATE {} SET {} WHERE {} =@p{}", #table_name, #builder_update_fields, pk, #fields_count + 1);
+                conn.execute(sql, &[#(#builder_update_data,)* dt]).await?;
                 Ok(())
             }
 
