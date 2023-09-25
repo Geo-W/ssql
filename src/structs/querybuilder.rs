@@ -9,9 +9,10 @@ use serde_json::{Map, Value};
 use tokio::net::TcpStream;
 use tokio_util::compat::Compat;
 
-use tiberius::{Client, ColumnData, QueryItem, QueryStream, ToSql};
+use tiberius::{Client, QueryItem, QueryStream, ToSql};
 
 use crate::error::custom_error::{SsqlError, SsqlResult};
+use crate::structs::filter::{Column, FilterExpr};
 
 pub struct QueryBuilder<'a, T: SsqlMarker> {
     pub(crate) fields: HashMap<&'static str, Vec<&'static str>>,
@@ -21,6 +22,7 @@ pub struct QueryBuilder<'a, T: SsqlMarker> {
     raw_sql: Option<String>,
     relation_func: fn(&str) -> &'static str,
     query_params: Vec<&'a dyn ToSql>,
+    query_idx_counter: i32,
 
     _marker: Option<PhantomData<T>>,
 }
@@ -32,20 +34,29 @@ impl<'a, T> QueryBuilder<'a, T>
         where C: SsqlMarker
     {
         QueryBuilder {
+            tables: HashSet::from([fields.0]),
             fields: HashMap::from([fields]),
             filters: vec![],
-            tables: HashSet::new(),
             join: String::new(),
             relation_func: func,
             raw_sql: None,
             _marker: None,
             query_params: vec![],
+            query_idx_counter: 0,
         }
     }
 
-    pub fn filter(mut self, field: &str, condition: impl ToString) -> Self {
-        self.filters.push(format!("{}{}", field, condition.to_string()));
-        self
+    pub fn filter(mut self, filter_expr: FilterExpr<'a>) -> SsqlResult<Self> {
+        self.query_params.push(filter_expr.conditions);
+        match self.tables.contains(filter_expr.col.table) {
+            true => {
+                self.filters.push(filter_expr.to_sql(&mut self.query_idx_counter));
+                Ok(self)
+            }
+            false => {
+                Err(SsqlError::new("the filter applies to a table not in this builder"))
+            }
+        }
     }
 
     fn join<B>(mut self, join_type: &str) -> QueryBuilder<'a, T>
@@ -122,11 +133,13 @@ impl<'a, T> QueryBuilder<'a, T>
             )
             .reduce(|cur, nxt| format!("{},{}", cur, nxt)).unwrap();
 
+        let where_clause = self.get_where_clause();
+
         // let mut stream = conn.simple_query(r#"SELECT ship_to_id as "CUSTOMER_LIST.ship_to_id", ship_to as "CUSTOMER_LIST.ship_to",
         // volume as "CUSTOMER_LIST.volume", container as "CUSTOMER_LIST.container" FROM CUSTOMER_LIST"#).await.unwrap();
         let stream = conn.query(match &self.raw_sql {
             None => {
-                format!("SELECT {} FROM {} {} ", select_fields, T::table_name(), self.join)
+                format!("SELECT {} FROM {} {} {where_clause}", select_fields, T::table_name(), self.join)
             }
             Some(v) => {
                 v.to_string()
@@ -138,6 +151,16 @@ impl<'a, T> QueryBuilder<'a, T>
     pub async fn delete(dt: &dyn ToSql, pk: &'static str, conn: &mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<()> {
         conn.execute(format!("DELETE FROM {} WHERE {} = @p1", T::table_name(), pk), &[dt]).await?;
         Ok(())
+    }
+
+    fn get_where_clause(&self) -> String {
+        match self.filters.iter()
+            .map(|x| x.clone())
+            .reduce(|cur, nxt| format!("{} AND {}", cur, nxt))
+        {
+            None => "".to_string(),
+            Some(v) => format!(" WHERE {}", v)
+        }
     }
 }
 
@@ -153,6 +176,17 @@ pub trait SsqlMarker: Sized {
     async fn insert(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
     async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
     async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
+
+    fn col(field: &'static str) -> SsqlResult<Column> {
+        match Self::fields().contains(&field) {
+            true => {
+                Ok(Column { table: Self::table_name(), field })
+            }
+            false => {
+                Err(SsqlError::new(format!("column {} not found in {}", field, Self::table_name())))
+            }
+        }
+    }
 }
 
 #[cfg(feature = "polars")]

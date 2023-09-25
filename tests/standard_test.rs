@@ -23,6 +23,21 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn filter() -> SsqlResult<()> {
+        let mut client = get_client().await;
+        let mut query = Customerlist::query()
+            .filter(
+                Customerlist::col("ship_to_id")?.eq(&"1239706")
+            )?;
+            // .filter(
+            //     Customerlist::col("volume")?.eq(&666)
+            // )?;
+        let a = query.get_struct::<Customerlist>(&mut client).await?;
+        dbg!(a);
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn insert_many() {
         let mut conn = get_client().await;
         let it = vec![Person { id: 5, Email: "a".to_string() }, Person { id: 6, Email: "a".to_string() }].into_iter();
@@ -69,8 +84,8 @@ mod tests {
         use chrono;
         let mut conn = get_client().await;
         let now = chrono::NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(2022,5,5).unwrap(),
-            NaiveTime::from_hms_micro_opt(1,1,1,0).unwrap()
+            NaiveDate::from_ymd_opt(2022, 5, 5).unwrap(),
+            NaiveTime::from_hms_micro_opt(1, 1, 1, 0).unwrap(),
         );
         let mut m = PersonRaw::query().raw("SELECT * FROM Person where id = @p1", &[&"asdf"]);
         let m = m.get_struct::<PersonRaw>(&mut conn).await;
@@ -114,7 +129,7 @@ mod tests {
         #[ssql(primary_key)]
         pub(crate) id: i32,
         pub(crate) Email: String,
-        dt: Option<NaiveDateTime>
+        dt: Option<NaiveDateTime>,
     }
 
     #[derive(ORM, Debug, Default)]
@@ -127,6 +142,5 @@ mod tests {
         TransitTime: Option<String>,
         Plant: Option<String>,
     }
-
 }
 

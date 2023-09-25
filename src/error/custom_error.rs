@@ -74,7 +74,7 @@ impl From<&'static str> for SsqlError {
 // }
 
 impl SsqlError {
-    pub fn new(msg: &str) -> Self {
+    pub fn new(msg: impl ToString) -> Self {
         let msg = msg.to_string();
         SsqlError::CustomError(CustomError { msg })
     }
