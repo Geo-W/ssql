@@ -22,17 +22,38 @@ pub struct Column {
 
 impl Column {
     pub fn eq(self, other: &dyn ToSql) -> FilterExpr {
-        self.expr_wrapper(other, ConditionVar::Eq)
+        self.expr_wrapper(ConditionVar::Eq(other))
     }
 
     pub fn neq(self, other: &dyn ToSql) -> FilterExpr {
-        self.expr_wrapper(other, ConditionVar::Neq)
+        self.expr_wrapper( ConditionVar::Neq(other))
     }
 
-    fn expr_wrapper(self, other: &dyn ToSql, con: ConditionVar) -> FilterExpr {
+    crate::impl_cmp! {lt, Lt, lt_eq, LtEq, gt, Gt, gt_eq, GtEq}
+
+    pub fn is_null<'b>(self) -> FilterExpr<'b> {
+        self.expr_wrapper(ConditionVar::IsNull)
+    }
+
+    pub fn is_not_null<'b>(self) -> FilterExpr<'b> {
+        self.expr_wrapper(ConditionVar::IsNotNull)
+    }
+
+    pub fn contains<'b>(self, other: impl ToString) -> FilterExpr<'b>{
+        self.expr_wrapper(ConditionVar::Contains(other.to_string()))
+    }
+
+    pub fn is_in<'b>(self, ls: &[impl ToSql]) -> FilterExpr<'b>{
+        let mut v = vec![];
+        for i in ls {
+            v.push(i);
+        }
+        self.expr_wrapper(ConditionVar::IsIn(v))
+    }
+
+    fn expr_wrapper(self,  con: ConditionVar) -> FilterExpr {
         FilterExpr {
             col: self,
-            conditions: other,
             con,
         }
     }
@@ -44,38 +65,55 @@ impl Column {
 
 pub struct FilterExpr<'b> {
     pub col: Column,
-    pub conditions: &'b dyn ToSql,
-    pub con: ConditionVar,
+    // pub conditions: &'b dyn ToSql,
+    pub con: ConditionVar<'b>,
 }
 
 impl<'b> FilterExpr<'b> {
-    pub(crate) fn to_sql(&self, idx: &mut i32) -> String {
-        match self.con {
-            ConditionVar::Eq => {
-                self.generic_to_sql(idx)
+    pub(crate) fn to_sql(&self, idx: &mut i32, query_params: &mut Vec<&'b dyn ToSql>) -> String {
+        match &self.con {
+            ConditionVar::Eq(v) | ConditionVar::Neq(v) | ConditionVar::Gt(v) | ConditionVar::GtEq(v) | ConditionVar::Lt(v) | ConditionVar::LtEq(v) => {
+                query_params.push(*v);
+                *idx += 1;
+                format!(" {} {} @p{}", self.col.full_column_name(), self.con.to_sql_symbol(), idx)
             }
-            ConditionVar::Neq => {
-                self.generic_to_sql(idx)
+            ConditionVar::IsNull | ConditionVar::IsNotNull => {
+                format!("{} {}", self.col.full_column_name(), self.con.to_sql_symbol())
+            }
+            ConditionVar::Contains(v) => {
+                format!("{} LIKE '%{}%' ", self.col.full_column_name(), v)
             }
         }
     }
 
-    fn generic_to_sql(&self, idx: &mut i32) -> String {
-        *idx += 1;
-        format!(" {} {} @p{}", self.col.full_column_name(), self.con.to_sql_symbol(), idx)
-    }
 }
 
-pub enum ConditionVar {
-    Eq,
-    Neq,
+pub enum ConditionVar<'a> {
+    Eq(&'a dyn ToSql),
+    Neq(&'a dyn ToSql),
+    Gt(&'a dyn ToSql),
+    GtEq(&'a dyn ToSql),
+    Lt(&'a dyn ToSql),
+    LtEq(&'a dyn ToSql),
+    IsNull,
+    IsNotNull,
+    IsIn(Vec<&'a impl ToSql>),
+    Contains(String),
 }
 
-impl ConditionVar {
+impl<'a> ConditionVar<'a> {
     fn to_sql_symbol(&self) -> &'static str {
         match self {
-            ConditionVar::Eq => "=",
-            ConditionVar::Neq => "<>"
+            ConditionVar::Eq(_) => "=",
+            ConditionVar::Neq(_) => "<>",
+            ConditionVar::Gt(_) => ">",
+            ConditionVar::GtEq(_) => ">=",
+            ConditionVar::Lt(_) => "<",
+            ConditionVar::LtEq(_) => "<=",
+            ConditionVar::IsNull => "is null",
+            ConditionVar::IsNotNull => "is not null",
+            // ConditionVar::IsIn => "",
+            ConditionVar::Contains(_) => "",
         }
     }
 }

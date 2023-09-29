@@ -27,7 +27,7 @@ mod tests {
         let mut client = get_client().await;
         let mut query = Customerlist::query()
             .filter(
-                Customerlist::col("ship_to_id")?.eq(&"1239706")
+                Customerlist::col("ship_to_id")?.contains(&"1239706")
             )?;
             // .filter(
             //     Customerlist::col("volume")?.eq(&666)
