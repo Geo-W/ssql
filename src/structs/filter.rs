@@ -50,6 +50,11 @@ impl Column {
         self.expr_wrapper(ConditionVar::IsIn(v))
     }
 
+    pub fn is_in_ref<'b>(self, ls: &[&'b dyn ToSql]) -> FilterExpr<'b> {
+        let v = ls.to_vec();
+        self.expr_wrapper(ConditionVar::IsIn(v))
+    }
+
     fn expr_wrapper(self, con: ConditionVar) -> FilterExpr {
         FilterExpr {
             col: self,
