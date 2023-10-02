@@ -26,7 +26,7 @@ impl Column {
     }
 
     pub fn neq(self, other: &dyn ToSql) -> FilterExpr {
-        self.expr_wrapper( ConditionVar::Neq(other))
+        self.expr_wrapper(ConditionVar::Neq(other))
     }
 
     crate::impl_cmp! {lt, Lt, lt_eq, LtEq, gt, Gt, gt_eq, GtEq}
@@ -39,19 +39,18 @@ impl Column {
         self.expr_wrapper(ConditionVar::IsNotNull)
     }
 
-    pub fn contains<'b>(self, other: impl ToString) -> FilterExpr<'b>{
+    pub fn contains<'b>(self, other: impl ToString) -> FilterExpr<'b> {
         self.expr_wrapper(ConditionVar::Contains(other.to_string()))
     }
 
-    pub fn is_in<'b>(self, ls: &[impl ToSql]) -> FilterExpr<'b>{
-        let mut v = vec![];
-        for i in ls {
-            v.push(i);
-        }
+    pub fn is_in(self, ls: &[impl ToSql]) -> FilterExpr {
+        let v = ls.iter()
+            .map(|x| x as &dyn ToSql)
+            .collect();
         self.expr_wrapper(ConditionVar::IsIn(v))
     }
 
-    fn expr_wrapper(self,  con: ConditionVar) -> FilterExpr {
+    fn expr_wrapper(self, con: ConditionVar) -> FilterExpr {
         FilterExpr {
             col: self,
             con,
@@ -83,9 +82,21 @@ impl<'b> FilterExpr<'b> {
             ConditionVar::Contains(v) => {
                 format!("{} LIKE '%{}%' ", self.col.full_column_name(), v)
             }
+            ConditionVar::IsIn(v) => {
+                let mut i = *idx;
+                *idx += v.len() as i32;
+                let cond_params = v.iter()
+                    .map(|_| {
+                    i += 1;
+                    format!("@p{}", i)
+                })
+                    .reduce(|cur, nxt| format!("{},{}", cur, nxt))
+                    .unwrap();
+                query_params.extend(v);
+                format!("{} IN ({})", self.col.full_column_name(), cond_params)
+            }
         }
     }
-
 }
 
 pub enum ConditionVar<'a> {
@@ -97,7 +108,7 @@ pub enum ConditionVar<'a> {
     LtEq(&'a dyn ToSql),
     IsNull,
     IsNotNull,
-    IsIn(Vec<&'a impl ToSql>),
+    IsIn(Vec<&'a dyn ToSql>),
     Contains(String),
 }
 
@@ -114,6 +125,7 @@ impl<'a> ConditionVar<'a> {
             ConditionVar::IsNotNull => "is not null",
             // ConditionVar::IsIn => "",
             ConditionVar::Contains(_) => "",
+            ConditionVar::IsIn(_) => ""
         }
     }
 }
