@@ -55,6 +55,10 @@ impl Column {
         self.expr_wrapper(ConditionVar::IsIn(v))
     }
 
+    pub fn between<'b>(self, start: &'b dyn ToSql, end: &'b dyn ToSql) -> FilterExpr<'b> {
+        self.expr_wrapper(ConditionVar::Between((start, end)))
+    }
+
     fn expr_wrapper(self, con: ConditionVar) -> FilterExpr {
         FilterExpr {
             col: self,
@@ -92,13 +96,19 @@ impl<'b> FilterExpr<'b> {
                 *idx += v.len() as i32;
                 let cond_params = v.iter()
                     .map(|_| {
-                    i += 1;
-                    format!("@p{}", i)
-                })
+                        i += 1;
+                        format!("@p{}", i)
+                    })
                     .reduce(|cur, nxt| format!("{},{}", cur, nxt))
                     .unwrap();
                 query_params.extend(v);
                 format!("{} IN ({})", self.col.full_column_name(), cond_params)
+            }
+            ConditionVar::Between((v1, v2)) => {
+                *idx += 2;
+                query_params.push(*v1);
+                query_params.push(*v2);
+                format!("{} BETWEEN @p{} AND @p{}", self.col.full_column_name(), *idx - 1, idx)
             }
         }
     }
@@ -115,6 +125,7 @@ pub enum ConditionVar<'a> {
     IsNotNull,
     IsIn(Vec<&'a dyn ToSql>),
     Contains(String),
+    Between((&'a dyn ToSql, &'a dyn ToSql)),
 }
 
 impl<'a> ConditionVar<'a> {
@@ -130,7 +141,8 @@ impl<'a> ConditionVar<'a> {
             ConditionVar::IsNotNull => "is not null",
             // ConditionVar::IsIn => "",
             ConditionVar::Contains(_) => "",
-            ConditionVar::IsIn(_) => ""
+            ConditionVar::IsIn(_) => "",
+            ConditionVar::Between(_) => "",
         }
     }
 }
