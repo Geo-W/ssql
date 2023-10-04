@@ -39,9 +39,18 @@ impl Column {
         self.expr_wrapper(ConditionVar::IsNotNull)
     }
 
-    pub fn contains<'b>(self, other: impl ToString) -> FilterExpr<'b> {
-        self.expr_wrapper(ConditionVar::Contains(other.to_string()))
+    pub fn contains<'b>(self, other: &'b str) -> FilterExpr<'b> {
+        self.expr_wrapper(ConditionVar::Contains(other))
     }
+
+    pub fn startswith<'b>(self, other: &'b str) -> FilterExpr<'b> {
+        self.expr_wrapper(ConditionVar::StarsWith(other))
+    }
+
+    pub fn endswith<'b>(self, other: &'b str) -> FilterExpr<'b> {
+        self.expr_wrapper(ConditionVar::EndsWith(other))
+    }
+
 
     pub fn is_in(self, ls: &[impl ToSql]) -> FilterExpr {
         let v = ls.iter()
@@ -126,6 +135,12 @@ impl<'b> FilterExpr<'b> {
                 query_params.push(*v2);
                 format!("{} BETWEEN @p{} AND @p{}", self.col.full_column_name(), *idx - 1, idx)
             }
+            ConditionVar::StarsWith(v) => {
+                format!("{} LIKE '{}%' ", self.col.full_column_name(), v)
+            }
+            ConditionVar::EndsWith(v) => {
+                format!("{} LIKE '%{}' ", self.col.full_column_name(), v)
+            }
         }
     }
 
@@ -145,7 +160,9 @@ pub enum ConditionVar<'a> {
     IsNull,
     IsNotNull,
     IsIn(Vec<&'a dyn ToSql>),
-    Contains(String),
+    Contains(&'a str),
+    StarsWith(&'a str),
+    EndsWith(&'a str),
     Between((&'a dyn ToSql, &'a dyn ToSql)),
 }
 
@@ -160,10 +177,11 @@ impl<'a> ConditionVar<'a> {
             ConditionVar::LtEq(_) => "<=",
             ConditionVar::IsNull => "is null",
             ConditionVar::IsNotNull => "is not null",
-            // ConditionVar::IsIn => "",
             ConditionVar::Contains(_) => "",
             ConditionVar::IsIn(_) => "",
             ConditionVar::Between(_) => "",
+            ConditionVar::StarsWith(_) => "",
+            ConditionVar::EndsWith(_) => ""
         }
     }
 }
