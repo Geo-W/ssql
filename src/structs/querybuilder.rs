@@ -47,10 +47,10 @@ impl<'a, T> QueryBuilder<'a, T>
     }
 
     pub fn filter(mut self, filter_expr: FilterExpr<'a>) -> SsqlResult<Self> {
-        self.query_params.push(filter_expr.conditions);
+        // self.query_params.push(filter_expr.conditions);
         match self.tables.contains(filter_expr.col.table) {
             true => {
-                self.filters.push(filter_expr.to_sql(&mut self.query_idx_counter));
+                self.filters.push(filter_expr.to_sql(&mut self.query_idx_counter, &mut self.query_params));
                 Ok(self)
             }
             false => {
@@ -134,6 +134,7 @@ impl<'a, T> QueryBuilder<'a, T>
             .reduce(|cur, nxt| format!("{},{}", cur, nxt)).unwrap();
 
         let where_clause = self.get_where_clause();
+        dbg!(&where_clause);
 
         // let mut stream = conn.simple_query(r#"SELECT ship_to_id as "CUSTOMER_LIST.ship_to_id", ship_to as "CUSTOMER_LIST.ship_to",
         // volume as "CUSTOMER_LIST.volume", container as "CUSTOMER_LIST.container" FROM CUSTOMER_LIST"#).await.unwrap();
