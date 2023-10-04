@@ -63,6 +63,7 @@ impl Column {
         FilterExpr {
             col: self,
             con,
+            or_cons: vec![],
         }
     }
 
@@ -74,11 +75,26 @@ impl Column {
 pub struct FilterExpr<'b> {
     pub col: Column,
     // pub conditions: &'b dyn ToSql,
-    pub con: ConditionVar<'b>,
+    con: ConditionVar<'b>,
+    or_cons: Vec<FilterExpr<'b>>
 }
 
 impl<'b> FilterExpr<'b> {
     pub(crate) fn to_sql(&self, idx: &mut i32, query_params: &mut Vec<&'b dyn ToSql>) -> String {
+        match self.or_cons.is_empty() {
+            true => {
+                self.to_sql_wrapper(idx, query_params)
+            }
+            false => {
+                let tmp = self.or_cons.iter()
+                    .chain([self])
+                    .map(|x| x.to_sql_wrapper(idx, query_params))
+                    .reduce(|cur, nxt| format!("{cur} OR {nxt}")).unwrap();
+                format!("( {} )", tmp)
+            }
+        }
+    }
+    pub(crate) fn to_sql_wrapper(&self, idx: &mut i32, query_params: &mut Vec<&'b dyn ToSql>) -> String {
         match &self.con {
             ConditionVar::Eq(v) | ConditionVar::Neq(v) | ConditionVar::Gt(v) | ConditionVar::GtEq(v) | ConditionVar::Lt(v) | ConditionVar::LtEq(v) => {
                 query_params.push(*v);
@@ -111,6 +127,11 @@ impl<'b> FilterExpr<'b> {
                 format!("{} BETWEEN @p{} AND @p{}", self.col.full_column_name(), *idx - 1, idx)
             }
         }
+    }
+
+    pub fn or(mut self, rhs: FilterExpr<'b>) -> Self{
+        self.or_cons.push(rhs);
+        self
     }
 }
 
