@@ -12,7 +12,7 @@ use tokio_util::compat::Compat;
 use tiberius::{Client, QueryItem, QueryStream, ToSql};
 
 use crate::error::custom_error::{SsqlError, SsqlResult};
-use crate::structs::filter::{Column, FilterExpr};
+use crate::structs::filter::{ColExpr, FilterExpr};
 
 pub struct QueryBuilder<'a, T: SsqlMarker> {
     pub(crate) fields: HashMap<&'static str, Vec<&'static str>>,
@@ -46,6 +46,8 @@ impl<'a, T> QueryBuilder<'a, T>
         }
     }
 
+    /// Chain a filter to current builder.
+    /// This method will check whether the table provided is in this builder thus [`SsqlResult`] is returned.
     pub fn filter(mut self, filter_expr: FilterExpr<'a>) -> SsqlResult<Self> {
         // self.query_params.push(filter_expr.conditions);
         match self.tables.contains(filter_expr.col.table) {
@@ -166,6 +168,7 @@ impl<'a, T> QueryBuilder<'a, T>
 }
 
 
+/// a trait
 #[async_trait(? Send)]
 pub trait SsqlMarker: Sized {
     fn table_name() -> &'static str;
@@ -178,10 +181,10 @@ pub trait SsqlMarker: Sized {
     async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
     async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
 
-    fn col(field: &'static str) -> SsqlResult<Column> {
+    fn col(field: &'static str) -> SsqlResult<ColExpr> {
         match Self::fields().contains(&field) {
             true => {
-                Ok(Column { table: Self::table_name(), field })
+                Ok(ColExpr { table: Self::table_name(), field })
             }
             false => {
                 Err(SsqlError::new(format!("column {} not found in {}", field, Self::table_name())))

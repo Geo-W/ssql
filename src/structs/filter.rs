@@ -1,40 +1,95 @@
 use tiberius::ToSql;
-
-// trait FilterHelper {
-//     fn eq<'a>(&'static self, rhs: &'a dyn ToSql) -> Filter<'a>;
-// }
-//
-//
-// impl FilterHelper for &'static str {
-//     fn eq<'a>(&'static self, rhs: &'a dyn ToSql) -> Filter<'a> {
-//         Filter{
-//             fields: vec![self.as_ref()],
-//             conditions: vec![rhs],
-//         }
-//     }
-// }
-
-
-pub struct Column {
-    pub table: &'static str,
-    pub field: &'static str,
+/// Column Expression
+pub struct ColExpr {
+    pub(crate) table: &'static str,
+    pub(crate) field: &'static str,
 }
 
-impl Column {
+impl ColExpr {
+    /// generate filter expression checking whether this column equals to a value.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("id")?.eq(&5)
+    /// )?;
+    /// ```
+    /// SQL: `... WHERE person.id = 5`
     pub fn eq(self, other: &dyn ToSql) -> FilterExpr {
         self.expr_wrapper(ConditionVar::Eq(other))
     }
 
+    /// generate filter expression checking whether this column not equals to a value.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("id")?.neq(&5)
+    /// )?;
+    /// ```
+    /// SQL: `... WHERE person.id <> 5`
     pub fn neq(self, other: &dyn ToSql) -> FilterExpr {
         self.expr_wrapper(ConditionVar::Neq(other))
     }
 
+    /// generate filter expression checking whether this column is not null.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("email")?.is_not_null()
+    /// )?;
+    /// ```
+    /// SQL: `... WHERE person.email IS NOT NULL aaaaaaaaaaa`
     crate::impl_cmp! {lt, Lt, lt_eq, LtEq, gt, Gt, gt_eq, GtEq}
 
+    /// generate filter expression checking whether this column is null.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("email")?.is_null()
+    /// )?;
+    /// ```
+    /// SQL: `**... WHERE person.email IS NULL**`
     pub fn is_null<'b>(self) -> FilterExpr<'b> {
         self.expr_wrapper(ConditionVar::IsNull)
     }
 
+    /// generate filter expression checking whether this column is not null.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("email")?.is_not_null()
+    /// )?;
+    /// ```
+    /// SQL: `... WHERE person.email IS NOT NULL`
     pub fn is_not_null<'b>(self) -> FilterExpr<'b> {
         self.expr_wrapper(ConditionVar::IsNotNull)
     }
@@ -76,13 +131,13 @@ impl Column {
         }
     }
 
-    pub fn full_column_name(&self) -> String {
+    pub(crate) fn full_column_name(&self) -> String {
         format!("{}.{}", self.table, self.field)
     }
 }
 
 pub struct FilterExpr<'b> {
-    pub col: Column,
+    pub col: ColExpr,
     // pub conditions: &'b dyn ToSql,
     con: ConditionVar<'b>,
     or_cons: Vec<FilterExpr<'b>>
@@ -150,7 +205,7 @@ impl<'b> FilterExpr<'b> {
     }
 }
 
-pub enum ConditionVar<'a> {
+pub(crate) enum ConditionVar<'a> {
     Eq(&'a dyn ToSql),
     Neq(&'a dyn ToSql),
     Gt(&'a dyn ToSql),

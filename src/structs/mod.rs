@@ -1,2 +1,2 @@
 pub(crate) mod querybuilder;
-mod filter;
+pub(crate) mod filter;
