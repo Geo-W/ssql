@@ -30,11 +30,11 @@ optional = true
 #default-features = false
 
 [dependencies.chrono]
-version = "0.4.26"
+version = "0.4.31"
 optional = true
 features = ["serde"]
 
 [dev-dependencies]
 deadpool-tiberius = "0.1.3"
-chrono = "0.4.26"
+chrono = "0.4.31"
 tiberius = { version = "0.12.2", features=["chrono"]}
