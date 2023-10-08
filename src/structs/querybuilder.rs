@@ -108,23 +108,23 @@ impl<'a, T> QueryBuilder<'a, T>
         self
     }
 
-    crate::impl_get_data!(get_serialized, row_to_json, [A, ret1, Value]);
-    crate::impl_get_data!(get_serialized_2, row_to_json, [A, ret1, Value, B, ret2, Value]);
-    crate::impl_get_data!(get_serialized_3, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value]);
-    crate::impl_get_data!(get_serialized_4, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value]);
-    crate::impl_get_data!(get_serialized_5, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value, E, ret5, Value]);
+    impl_get_data!(get_serialized, row_to_json, [A, ret1, Value]);
+    impl_get_data!(get_serialized_2, row_to_json, [A, ret1, Value, B, ret2, Value]);
+    impl_get_data!(get_serialized_3, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value]);
+    impl_get_data!(get_serialized_4, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value]);
+    impl_get_data!(get_serialized_5, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value, E, ret5, Value]);
 
-    crate::impl_get_data!(get_struct, row_to_struct, [A, ret1, A]);
-    crate::impl_get_data!(get_struct_2, row_to_struct, [A, ret1, A, B, ret2, B]);
-    crate::impl_get_data!(get_struct_3, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C]);
-    crate::impl_get_data!(get_struct_4, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D]);
-    crate::impl_get_data!(get_struct_5, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D, E, ret5, E]);
+    impl_get_data!(get_struct, row_to_struct, [A, ret1, A]);
+    impl_get_data!(get_struct_2, row_to_struct, [A, ret1, A, B, ret2, B]);
+    impl_get_data!(get_struct_3, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C]);
+    impl_get_data!(get_struct_4, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D]);
+    impl_get_data!(get_struct_5, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D, E, ret5, E]);
 
-    crate::impl_get_dataframe!(get_dataframe, get_struct, [A, ret1, DataFrame]);
-    crate::impl_get_dataframe!(get_dataframe_2, get_struct_2, [A, ret1, DataFrame, B, ret2, DataFrame]);
-    crate::impl_get_dataframe!(get_dataframe_3, get_struct_3, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame]);
-    crate::impl_get_dataframe!(get_dataframe_4, get_struct_4, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame]);
-    crate::impl_get_dataframe!(get_dataframe_5, get_struct_5, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame, E, ret5, DataFrame]);
+    impl_get_dataframe!(get_dataframe, get_struct, [A, ret1, DataFrame]);
+    impl_get_dataframe!(get_dataframe_2, get_struct_2, [A, ret1, DataFrame, B, ret2, DataFrame]);
+    impl_get_dataframe!(get_dataframe_3, get_struct_3, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame]);
+    impl_get_dataframe!(get_dataframe_4, get_struct_4, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame]);
+    impl_get_dataframe!(get_dataframe_5, get_struct_5, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame, E, ret5, DataFrame]);
 
 
     async fn execute<'b>(&self, conn: &'b mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<QueryStream<'b>> {
@@ -171,16 +171,99 @@ impl<'a, T> QueryBuilder<'a, T>
 /// a trait
 #[async_trait(? Send)]
 pub trait SsqlMarker: Sized {
+    #[doc(hidden)]
     fn table_name() -> &'static str;
+    #[doc(hidden)]
     fn fields() -> Vec<&'static str>;
+    #[doc(hidden)]
     fn row_to_json(row: &tiberius::Row) -> Map<String, Value>;
+    #[doc(hidden)]
     fn row_to_struct(row: &tiberius::Row) -> Self;
+    /// Generate a query builder for the struct.
     fn query<'a>() -> QueryBuilder<'a, Self>;
+
+    /// Bulk insert, takes everything that can be turned into iterator that generate specific structs.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// # async fn insert(mut conn: Client<Compat<TcpStream>>) {
+    ///     // example1:
+    ///     Person::insert_many(vec![Person{id: 1,email: Some("a@gmail.com".to_string())},
+    ///                             Person{id: 2,email: Some("b@gmail.com".to_string())}], &mut conn).await;
+    ///     // example2:
+    ///     Person::insert_many((1..=3).zip(vec!["a@gmail.com", "b@gmail.com", "c@gmail.com"])
+    ///         .map(|(idx, mail)| {
+    ///                 Person {
+    ///                     id: idx,
+    ///                     email: Some(mail.to_string()),
+    ///                 }
+    ///         }), &mut conn).await
+    /// # }
+    /// ```
     async fn insert_many(iter: impl IntoIterator<Item=Self>, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>;
+
+    /// Insert one item, consume self.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// # async fn insert(mut conn: Client<Compat<TcpStream>>) {
+    ///     let person = Person{id: 1,email: Some("a@gmail.com".to_string())};
+    ///     person.insert(&mut conn).await;
+    /// # }
+    /// ```
     async fn insert(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
+
+    /// Delete one item based on primary key, consume self.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    ///  #[derive(ORM)]
+    ///  #[ssql(table = person)]
+    ///  struct Person{
+    ///      #[ssql(primary_key)]
+    ///     id: i32,
+    ///     email: Option<String>,
+    ///  }
+    ///  async fn _test(mut conn: Client<Compat<TcpStream>>) {
+    ///     let person = Person{id: 1,email: Some("a@gmail.com".to_string())};
+    ///     person.delete(&mut conn).await;
+    ///  }
+    /// ```
+    /// SQL: `DELETE FROM person WHERE id = 1`
     async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
+
+    /// Update one item based on primary key, borrow self.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    ///  #[derive(ORM)]
+    ///  #[ssql(table = person)]
+    ///  struct Person{
+    ///      #[ssql(primary_key)]
+    ///     id: i32,
+    ///     email: Option<String>,
+    ///  }
+    ///  async fn _test(mut conn: Client<Compat<TcpStream>>) {
+    ///     let person = Person{id: 1,email: Some("a@gmail.com".to_string())};
+    ///     person.update(&mut conn).await;
+    ///  }
+    /// ```
+    /// SQL: `UPDATE person SET email = 'a@gmail.com' WHERE id = 1`
     async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
 
+    /// Generate a Column Expression that can be used in filtering and ordering.
+    /// This method will failed if the given column name is no present in the struct.
+    /// Thus it returns [`SsqlResult`]
+    ///
+    /// [`SsqlResult`]: type.SsqlResult.html
     fn col(field: &'static str) -> SsqlResult<ColExpr> {
         match Self::fields().contains(&field) {
             true => {

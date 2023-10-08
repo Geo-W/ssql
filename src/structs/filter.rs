@@ -1,4 +1,5 @@
 use tiberius::ToSql;
+
 /// Column Expression
 pub struct ColExpr {
     pub(crate) table: &'static str,
@@ -42,7 +43,7 @@ impl ColExpr {
         self.expr_wrapper(ConditionVar::Neq(other))
     }
 
-    /// generate filter expression checking whether this column is not null.
+    /// generate filter expression checking whether this column is less than a value.
     /// ```no_run
     /// # use ssql::prelude::*;
     /// # #[derive(ORM)]
@@ -52,11 +53,59 @@ impl ColExpr {
     /// #    email: Option<String>,
     /// # }
     /// let query = Person::query().filter(
-    ///     Person::col("email")?.is_not_null()
+    ///     Person::col("email")?.lt(&5)
     /// )?;
     /// ```
-    /// SQL: `... WHERE person.email IS NOT NULL aaaaaaaaaaa`
-    crate::impl_cmp! {lt, Lt, lt_eq, LtEq, gt, Gt, gt_eq, GtEq}
+    /// SQL: `... WHERE person.id < 5`
+    pub fn lt(self, other: &dyn ToSql) -> FilterExpr { self.expr_wrapper(ConditionVar::Lt(other)) }
+
+    /// generate filter expression checking whether this column is less or equal than a value.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("email")?.lt_eq(&5)
+    /// )?;
+    /// ```
+    /// SQL: `... WHERE person.id <= 5`
+    pub fn lt_eq(self, other: &dyn ToSql) -> FilterExpr { self.expr_wrapper(ConditionVar::LtEq(other)) }
+
+    /// generate filter expression checking whether this column is greater than a value.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("email")?.gt(&5)
+    /// )?;
+    /// ```
+    /// SQL: `... WHERE person.id > 5`
+    pub fn gt(self, other: &dyn ToSql) -> FilterExpr { self.expr_wrapper(ConditionVar::Gt(other)) }
+
+    /// generate filter expression checking whether this column is greater or equal than a value.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("email")?.gt_eq(&5)
+    /// )?;
+    /// ```
+    /// SQL: `... WHERE person.id >= 5`
+    pub fn gt_eq(self, other: &dyn ToSql) -> FilterExpr { self.expr_wrapper(ConditionVar::GtEq(other)) }
 
     /// generate filter expression checking whether this column is null.
     /// ```no_run
@@ -94,19 +143,74 @@ impl ColExpr {
         self.expr_wrapper(ConditionVar::IsNotNull)
     }
 
+    /// generate filter expression checking whether a char column contains a given str.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("email")?.contains("gmail")
+    /// )?;
+    /// ```
+    /// SQL: `... WHERE person.email LIKE '%gmail%' `
     pub fn contains<'b>(self, other: &'b str) -> FilterExpr<'b> {
         self.expr_wrapper(ConditionVar::Contains(other))
     }
 
+    /// generate filter expression checking whether a char column starts with a given str.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("email")?.startswith("john")
+    /// )?;
+    /// ```
+    /// SQL: `... WHERE person.email LIKE 'john%' `
     pub fn startswith<'b>(self, other: &'b str) -> FilterExpr<'b> {
         self.expr_wrapper(ConditionVar::StarsWith(other))
     }
 
+    /// generate filter expression checking whether a char column ends with a given str.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("email")?.endswith("gmail.com")
+    /// )?;
+    /// ```
+    /// SQL: `... WHERE person.email LIKE '%gmail.com' `
     pub fn endswith<'b>(self, other: &'b str) -> FilterExpr<'b> {
         self.expr_wrapper(ConditionVar::EndsWith(other))
     }
 
-
+    /// generate filter expression checking whether a value in a given list.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("id")?.is_in(&[3,4,5,6,7])
+    /// )?;
+    /// ```
+    /// SQL: `... WHERE person.id IN (3,4,5,6,7) `
     pub fn is_in(self, ls: &[impl ToSql]) -> FilterExpr {
         let v = ls.iter()
             .map(|x| x as &dyn ToSql)
@@ -114,11 +218,40 @@ impl ColExpr {
         self.expr_wrapper(ConditionVar::IsIn(v))
     }
 
+    /// generate filter expression checking whether a value in a given list.
+    /// This method allows for providing different types of args.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("email")?.is_in_ref(&[&3, &"4", &5])
+    /// )?;
+    /// ```
+    /// SQL: `... WHERE person.id IN (3,'4',5) `
     pub fn is_in_ref<'b>(self, ls: &[&'b dyn ToSql]) -> FilterExpr<'b> {
         let v = ls.to_vec();
         self.expr_wrapper(ConditionVar::IsIn(v))
     }
 
+    /// generate filter expression checking whether a value between a range.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("email")?.between(&3, &7)
+    /// )?;
+    /// ```
+    /// SQL: `... WHERE person.id BETWEEN 3 AND 7 `
     pub fn between<'b>(self, start: &'b dyn ToSql, end: &'b dyn ToSql) -> FilterExpr<'b> {
         self.expr_wrapper(ConditionVar::Between((start, end)))
     }
@@ -137,10 +270,10 @@ impl ColExpr {
 }
 
 pub struct FilterExpr<'b> {
-    pub col: ColExpr,
+    pub(crate) col: ColExpr,
     // pub conditions: &'b dyn ToSql,
     con: ConditionVar<'b>,
-    or_cons: Vec<FilterExpr<'b>>
+    or_cons: Vec<FilterExpr<'b>>,
 }
 
 impl<'b> FilterExpr<'b> {
@@ -199,7 +332,7 @@ impl<'b> FilterExpr<'b> {
         }
     }
 
-    pub fn or(mut self, rhs: FilterExpr<'b>) -> Self{
+    pub fn or(mut self, rhs: FilterExpr<'b>) -> Self {
         self.or_cons.push(rhs);
         self
     }

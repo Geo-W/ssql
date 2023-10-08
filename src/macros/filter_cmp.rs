@@ -1,4 +1,3 @@
-#[macro_export]
 macro_rules! impl_cmp {
     ($($func_name:ident, $cmp_enum: ident),*) => {
         $(

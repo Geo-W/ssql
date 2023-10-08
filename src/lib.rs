@@ -1,14 +1,15 @@
 //! An easy-to-use asynchronous ms sql server ORM.
 //!
 //! # Way of Getting Data.
-//! Query is built using [`Table::query`] method.
+//! Query is built using [`Table::query`] method, it returns [`QueryBuilder`] object.
+//! Through this object u can join other tables, apply filters, make query or make bulk inserts.
 //! ```
 //! use ssql::prelude::*;
 //! use serde::{Deserialize, Serialize};
 //! use chrono::NaiveDateTime;
 //!
 //! #[derive(ORM, Debug, Default, Serialize, Deserialize)]
-//! #[ssql(table = person, schema = SCHEMA1)] // default schema
+//! #[ssql(table = person, schema = SCHEMA1)] // other schema
 //! struct Person {
 //!     #[ssql(primary_key)]
 //!     id: i32,
@@ -16,7 +17,7 @@
 //! }
 //!
 //! #[derive(ORM, Debug, Default, Serialize, Deserialize)]
-//! #[ssql(table = posts)] // other schema
+//! #[ssql(table = posts)] // default schema
 //! struct Posts {
 //!     id: i32,
 //!     post: String,
@@ -88,7 +89,7 @@
 //! # Filters
 //! Filters can be applied to query builder via provided [`filter`] method.
 //! Filters can be chained.
-//! For all filter expression please refer to [`crate::structs::filter::ColExpr`]
+//! For all filter expression please refer to [`ColExpr`]
 //! ```no_run
 //! # use ssql::prelude::*;
 //! # use serde::{Deserialize, Serialize};
@@ -108,13 +109,19 @@
 //! ```
 //! [`filter`]: struct.QueryBuilder.html#method.filter
 //! [`Table::query`]: trait.SsqlMarker.html#tymethod.query
-//! [`Col`]: structs.filter.ColExpr.html
+//! [`ColExpr`]: structs.filter.ColExpr.html
+//! [`QueryBuilder`]: struct.QueryBuilder.html
 
+#[macro_use]
+pub(crate) mod macros;
 mod structs;
 pub mod prelude;
-pub mod error;
+mod error;
 pub mod utils;
-mod macros;
+
+
+pub use error::custom_error::SsqlResult;
+pub use error::custom_error::SsqlError;
 
 pub use structs::filter::ColExpr;
 pub use structs::filter::FilterExpr;

@@ -1,4 +1,3 @@
-#[macro_export]
 macro_rules! impl_get_dataframe {
     ($func_name:ident, $get_struct_func: ident, [$($T:ident, $R: ident, $R_Ty: ty),*]) => {
         #[allow(unused_parens)]

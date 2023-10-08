@@ -1,4 +1,3 @@
-#[macro_export]
 macro_rules! impl_get_data {
     ($func_name:ident, $process_row: ident, [$($T:ident, $R: ident, $R_Ty: ty),*]) => {
         #[allow(unused_parens)]
