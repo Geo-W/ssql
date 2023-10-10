@@ -1,14 +1,13 @@
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
-    use chrono::{NaiveDate, NaiveTime, NaiveDateTime};
+    use chrono::NaiveDateTime;
     use serde::{Deserialize, Serialize};
     use tiberius::Client;
     use tokio::net::TcpStream;
     use tokio_util::compat::Compat;
 
     use ssql::prelude::*;
-
 
     #[tokio::test]
     async fn test() {
@@ -81,7 +80,6 @@ mod tests {
 
     #[tokio::test]
     async fn raw_query_and_chrono() {
-        use chrono;
         let mut conn = get_client().await;
         let mut m = PersonRaw::query().raw("SELECT * FROM Person where id = @p1", &[&"asdf"]);
         let m = m.get_struct::<PersonRaw>(&mut conn).await;

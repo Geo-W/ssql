@@ -1,12 +1,11 @@
 #![allow(dead_code)]
 
 use std::fmt;
-use std::fmt::{format, Formatter};
+use std::fmt::Formatter;
 
 #[cfg(feature = "polars")]
 use polars::error::PolarsError;
 use serde;
-
 
 /// Alias for Result<T, [`SsqlError`]>
 ///
