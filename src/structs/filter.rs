@@ -271,7 +271,6 @@ impl ColExpr {
 
 pub struct FilterExpr<'b> {
     pub(crate) col: ColExpr,
-    // pub conditions: &'b dyn ToSql,
     con: ConditionVar<'b>,
     or_cons: Vec<FilterExpr<'b>>,
 }
@@ -332,13 +331,31 @@ impl<'b> FilterExpr<'b> {
         }
     }
 
+    /// supplement 'or' filters for current filter statement.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// # #[derive(ORM)]
+    /// # #[ssql(table = person)]
+    /// # struct Person{
+    /// #    id: i32,
+    /// #    email: Option<String>,
+    /// # }
+    /// let query = Person::query().filter(
+    ///     Person::col("id")?.is_in_ref(&[&3, &"4", &5])
+    ///             .or(Person::col("id")?.gt(&20))
+    /// )?
+    ///  .filter(
+    ///     Person::col("email")?.contains("gmail")
+    /// )?;
+    /// ```
+    /// SQL: `... WHERE (person.id IN (3,'4',5) OR person.id > 20) AND person.email LIKE '%gmail%' `
     pub fn or(mut self, rhs: FilterExpr<'b>) -> Self {
         self.or_cons.push(rhs);
         self
     }
 }
 
-pub(crate) enum ConditionVar<'a> {
+enum ConditionVar<'a> {
     Eq(&'a dyn ToSql),
     Neq(&'a dyn ToSql),
     Gt(&'a dyn ToSql),

@@ -66,22 +66,7 @@
 //!         email: Some(email.to_string()),
 //!     });
 //!     Person::insert_many(it, client);
-//!
-//!     // structs reflecting complex raw query
-//!     // leave the table attribute empty
-//!     #[derive(ORM, Debug, Default, Serialize, Deserialize)]
-//!     #[ssql(table)]
-//!     pub struct PersonRaw {
-//!         #[ssql(primary_key)]
-//!         pub(crate) id: i32,
-//!         pub(crate) email: String,
-//!         dt: Option<NaiveDateTime>
-//!     }
-//!
-//!     let query = PersonRaw::query()
-//!         .raw("SELECT * FROM Person where id = @p1", &[&1]);
-//!
-//!     let data = query.get_struct::<PersonRaw>(client).await;
+//!     Ok(())
 //! }
 //!
 //! ```
@@ -107,16 +92,46 @@
 //!     Person::col("id")?.gt(&3)
 //! );
 //! ```
+//!
+//! # Raw Sql Query
+//! Using [`query.raw()`] method to construct a raw sql query.
+//! Field name are reflecting as column name in sql query result.
+//! ```
+//! use ssql::prelude::*;
+//! # use chrono::NaiveDateTime;
+//!  // structs reflecting complex raw query
+//!  // leave the table attribute empty
+//!  #[derive(ORM)]
+//!  #[ssql(table)]
+//!  pub struct PersonRaw {
+//!     #[ssql(primary_key)]
+//!     id: i32,
+//!     email: String,
+//!     dt: Option<NaiveDateTime>
+//!  }
+//! async fn get<'a>(client: &'a mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<()> {
+//!  let query = PersonRaw::query()
+//!         .raw("SELECT id, email, dt FROM Person where id = @p1", &[&1]);
+//!
+//!  let data = query.get_struct::<PersonRaw>(client).await;
+//!  Ok(())
+//! }
+//! ```
 //! [`filter`]: struct.QueryBuilder.html#method.filter
 //! [`Table::query`]: trait.SsqlMarker.html#tymethod.query
 //! [`ColExpr`]: structs.filter.ColExpr.html
 //! [`QueryBuilder`]: struct.QueryBuilder.html
-
+//! [`query.raw()`]: struct.QueryBuilder.html#method.raw
+#![warn(missing_docs)]
 #[macro_use]
 pub(crate) mod macros;
 mod structs;
+
+/// All necessary imports for using this crate.
 pub mod prelude;
 mod error;
+
+/// Utility functions.
 pub mod utils;
 
 

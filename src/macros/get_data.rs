@@ -1,6 +1,7 @@
 macro_rules! impl_get_data {
     ($func_name:ident, $process_row: ident, [$($T:ident, $R: ident, $R_Ty: ty),*]) => {
         #[allow(unused_parens)]
+        #[doc="Getting data from query builder instance, will panic if the given table struct is not main table or not joined."]
         pub async fn $func_name<$($T),*>(
             &mut self,
             conn: &mut tiberius::Client<Compat<TcpStream>>,

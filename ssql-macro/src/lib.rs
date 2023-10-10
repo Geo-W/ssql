@@ -321,7 +321,7 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
 
             async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()> {
                 let (pk, dt) = self.primary_key();
-                QueryBuilder::<#struct_name>::delete(dt, pk, conn).await?;
+                conn.execute(format!("DELETE FROM {} WHERE {} = @p1", #table_name, pk), &[dt]).await?;
                 Ok(())
             }
 

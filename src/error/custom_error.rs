@@ -7,8 +7,13 @@ use std::fmt::Formatter;
 use polars::error::PolarsError;
 use serde;
 
+
+/// Alias for Result<T, [`SsqlError`]>
+///
+/// [`SsqlError`]: enum.SsqlError
 pub type SsqlResult<T> = Result<T, SsqlError>;
 
+/// Error enum representing different errors during execution.
 #[derive(Debug)]
 pub enum SsqlError {
     SqlServerError(tiberius::error::Error),
