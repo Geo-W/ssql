@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use std::fmt;
-use std::fmt::Formatter;
+use std::fmt::{format, Formatter};
 
 #[cfg(feature = "polars")]
 use polars::error::PolarsError;
@@ -16,12 +16,13 @@ pub type SsqlResult<T> = Result<T, SsqlError>;
 /// Error enum representing different errors during execution.
 #[derive(Debug)]
 pub enum SsqlError {
+    /// An Error occurs when executing sql.
     SqlServerError(tiberius::error::Error),
+    /// An Error occurs when transforming result to polars dataframe.
     #[cfg(feature = "polars")]
     PolarsError(PolarsError),
-    RsRunningError(&'static str),
-    CustomError(CustomError),
-    SentError(SentError),
+    /// An Error occurs when constructing query.
+    RsRunningError(String),
 }
 
 
@@ -41,11 +42,13 @@ impl serde::Serialize for SsqlError {
 impl fmt::Display for SsqlError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let a = match self {
-            SsqlError::SqlServerError(inner) => inner.to_string(),
-            SsqlError::CustomError(_) => "Internal Server Error".to_owned(),
-            SsqlError::SentError(inner) => inner.to_string(),
+            SsqlError::SqlServerError(inner) => {
+                format!("Error occur when executing sql: {}", inner)
+            },
             #[cfg(feature = "polars")]
-            SsqlError::PolarsError(inner) => {inner.to_string()}
+            SsqlError::PolarsError(inner) => {
+                format!("Error occur when transforming to polars: {}", inner)
+            }
             SsqlError::RsRunningError(inner) => {inner.to_string()}
         };
         write!(f, "{}", a)
@@ -67,6 +70,12 @@ impl From<tiberius::error::Error> for SsqlError {
 
 impl From<&'static str> for SsqlError {
     fn from(value: &'static str) -> Self{
+        SsqlError::RsRunningError(value.to_string())
+    }
+}
+
+impl From<String> for SsqlError {
+    fn from(value: String) -> Self{
         SsqlError::RsRunningError(value)
     }
 }
@@ -78,16 +87,6 @@ impl From<&'static str> for SsqlError {
 //     }
 // }
 
-impl SsqlError {
-    pub fn new(msg: impl ToString) -> Self {
-        let msg = msg.to_string();
-        SsqlError::CustomError(CustomError { msg })
-    }
-    pub fn send(msg: &str) -> Self {
-        let msg = msg.to_owned();
-        SsqlError::SentError(SentError { msg })
-    }
-}
 
 #[derive(Debug)]
 pub struct CustomError {

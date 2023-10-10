@@ -269,6 +269,9 @@ impl ColExpr {
     }
 }
 
+/// Filter expression used in [`query.filter`] method.
+///
+/// [`query.filter`]: struct.QueryBuilder.html#method.filter
 pub struct FilterExpr<'b> {
     pub(crate) col: ColExpr,
     con: ConditionVar<'b>,

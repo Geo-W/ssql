@@ -2,6 +2,7 @@ use tiberius::Client;
 use tokio::net::TcpStream;
 use tokio_util::compat::TokioAsyncWriteCompatExt;
 
+/// Getting client, only for testing purpose.
 pub async fn get_client(username:&str, password:&str, host:&str, database:&str) -> tiberius::Client<tokio_util::compat::Compat<TcpStream>> {
     let mut config = tiberius::Config::new();
     config.host(host);
