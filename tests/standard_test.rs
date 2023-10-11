@@ -81,7 +81,7 @@ mod tests {
     #[tokio::test]
     async fn raw_query_and_chrono() {
         let mut conn = get_client().await;
-        let mut m = PersonRaw::query().raw("SELECT * FROM Person where id = @p1", &[&"asdf"]);
+        let mut m = PersonRaw::raw_query("SELECT * FROM Person where id = @p1", &[&"1"]);
         let m = m.get_struct::<PersonRaw>(&mut conn).await;
         assert_eq!(m.is_ok(), true);
     }
