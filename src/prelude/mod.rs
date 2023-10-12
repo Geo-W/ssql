@@ -1,4 +1,4 @@
-pub use rssql_macro::ORM;
+pub use ssql_macro::ORM;
 
 pub use crate::structs::querybuilder::QueryBuilder;
 pub use crate::structs::querybuilder::SsqlMarker;
