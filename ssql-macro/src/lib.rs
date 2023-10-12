@@ -122,7 +122,7 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
             return format!(" {} = @p{}", f.clone().ident.unwrap().to_string(), fields_count);
         })
         .reduce(|cur: String, next: String| format!("{},{}", cur, &next)).unwrap();
-    let builder_update_data = builder_insert_data.clone();
+    let builder_update_data = builder_insert_data_ignore_pk.clone();
 
 
     #[cfg(feature = "polars")]
