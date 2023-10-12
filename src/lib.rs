@@ -25,7 +25,7 @@
 //!     person_id: i32,
 //! }
 //!
-//! async fn get<'a>(client: &'a mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<()> {
+//! async fn _get<'a>(client: &'a mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<()> {
 //!         let mut query = Person::query()
 //!         .join::<Posts>();
 //!
@@ -39,33 +39,7 @@
 //!     // with polars feature enabled, return DataFrame;
 //!     let (df1, df2) = query.get_dataframe_2::<Person, Posts>(client).await?;
 //!
-//!     let new_p = Person {
-//!         id: 2,
-//!         email: Some("a@a.com".to_string()),
-//!     };
 //!
-//!     //insert with data in this instance.
-//!     new_p.insert(client);
-//!
-//!     // delete it based on its primary key mark.
-//!     // like here i mark id with #[ssql(primary_key)]
-//!     new_p.delete(client);
-//!
-//!     // update it based on its primary key mark.
-//!     new_p.update(client);
-//!
-//!
-//!     // insert many accepts anything that can turn into iterator and return specific type, here is <Person>
-//!     let vec = vec![new_p.clone(), new_p.clone()];
-//!     Person::insert_many(vec, client);
-//!
-//!     let it = vec![1, 2, 3].into_iter().zip(
-//!         vec!["a", "b", "c"].into_iter()
-//!     ).map(|(id, email)| Person {
-//!         id,
-//!         email: Some(email.to_string()),
-//!     });
-//!     Person::insert_many(it, client);
 //!     Ok(())
 //! }
 //!
@@ -74,7 +48,7 @@
 //! # Filters
 //! Filters can be applied to query builder via provided [`filter`] method.
 //! Filters can be chained.
-//! For all filter expression please refer to [`ColExpr`]
+//! For all filter expression please refer to [`ColExpr`].
 //! ```no_run
 //! # use ssql::prelude::*;
 //! # use serde::{Deserialize, Serialize};
@@ -91,6 +65,61 @@
 //! ).filter(
 //!     Person::col("id")?.gt(&3)
 //! );
+//! ```
+//!
+//! # Manipulating Data
+//! Data can be [`insert`],[`delete`],[`update`],[`insert_ignore_pk`] for any instance that `#[derive(ORM)]` and set `#[ssql(primary_key)]`.
+//! Or calling `bulk insert` with [`Struct::insert_many(&mut conn)`] method.
+//!
+//! [`insert`]: trait.SsqlMarker.html#tymethod.insert
+//! [`delete`]: trait.SsqlMarker.html#tymethod.delete
+//! [`update`]: trait.SsqlMarker.html#tymethod.update
+//! [`insert_ignore_pk`]: trait.SsqlMarker.html#tymethod.insert_ignore_pk
+//! [`Struct::insert_many(&mut conn)`]: trait.SsqlMarker.html#tymethod.insert_many
+//! ```
+//! # use ssql::prelude::*;
+//! # use serde::{Deserialize, Serialize};
+//! # use chrono::NaiveDateTime;
+//! # #[derive(ORM, Debug, Default, Serialize, Deserialize)]
+//! # #[ssql(table = person, schema = SCHEMA1)]
+//! # struct Person {
+//! #     #[ssql(primary_key)]
+//! #     id: i32,
+//! #     email: Option<String>,
+//! # }
+//! async fn _test<'a>(client: &'a mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<()> {
+//!     let new_p = Person {
+//!         id: 2,
+//!         email: Some("a@a.com".to_string()),
+//!     };
+//!
+//!     //insert with data in this instance.
+//!     new_p.insert(client).await?;
+//!
+//!     //insert with data in this instance ignoring the primary key.
+//!     new_p.insert_ignore_pk(client).await?;
+//!
+//!     // delete it based on its primary key mark.
+//!     // like here i mark id with #[ssql(primary_key)]
+//!     new_p.delete(client).await?;
+//!
+//!     // update it based on its primary key mark.
+//!     new_p.update(client).await?;
+//!
+//!
+//!     // insert many accepts anything that can turn into iterator and return specific type, here is <Person>
+//!     let vec = vec![new_p.clone(), new_p.clone()];
+//!     Person::insert_many(vec, client).await?;
+//!
+//!     let it = vec![1, 2, 3].into_iter().zip(
+//!         vec!["a", "b", "c"].into_iter()
+//!     ).map(|(id, email)| Person {
+//!         id,
+//!         email: Some(email.to_string()),
+//!     });
+//!     Person::insert_many(it, client).await?;
+//!     Ok(())
+//! }
 //! ```
 //!
 //! # Raw Sql Query

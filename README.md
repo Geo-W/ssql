@@ -1,15 +1,15 @@
 # An easy-to use basic mssql server ORM based on tiberius.  
 
 This crate is still under construction, apis may subject to change.   
-For now only the basic function is accomplished, check it out below.
-### Usage:
+For full documentation pls visit [doc.rs](https://docs.rs/ssql/*/ssql/).
+### Quick Glance:
 > When defining structs, make sure keep the field sequence consistent with the sequence in database as bulk insert(insert_many) depends on it. 
 ```rust
 use ssql::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(ORM, Debug, Default, Serialize, Deserialize)]
-#[ssql(table = Person, schema = SCHEMA1)] // default schema
+#[ssql(table = Person, schema = SCHEMA1)] // other schema
 struct Person {
     #[ssql(primary_key)]
     id: i32,
@@ -17,7 +17,7 @@ struct Person {
 }
 
 #[derive(ORM, Debug, Default, Serialize, Deserialize)]
-#[ssql(table = Posts)] // other schema
+#[ssql(table = Posts)] // default schema
 struct Posts {
     id: i32,
     post: String,
@@ -30,66 +30,23 @@ async fn get<'a>(client: &'a mut tiberius::Client<Compat<TcpStream>>) -> SsqlRes
         .join::<Posts>();
 
     // return a vector of struct
-    let vec1 = query.get_struct::<Posts>(&mut client).await?;
-    let (vec1, vec2) = query.get_struct_2::<Person, Posts>(&mut client).await?;
+    let vec1 = query.get_struct::<Posts>(client).await?;
+    
+    let (vec1, vec2) = query.get_struct_2::<Person, Posts>(client).await?;
 
     // return a vector of serde_json::Value;
-    let vec1 = query.get_serialized::<Person>(&mut client).await?;
+    let vec1 = query.get_serialized::<Person>(client).await?;
 
     // with polars feature enabled, return DataFrame;
-    let (df1, df2) = query.get_dataframe_2::<Person, Posts>(&mut client).await?;
-
-    let new_p = Person {
-        id: 2,
-        email: Some("a@a.com".to_string()),
-    };
-
-    //insert with data in this instance.
-    new_p.insert(&mut client);
-
-    // delete it based on its primary key mark.
-    // like here i mark id with #[ssql(primary_key)]
-    new_p.delete(&mut client);
-
-    // update it based on its primary key mark.
-    new_p.update(&mut client);
-
-
-    // insert many accepts anything that can turn into iterator and return specific type, here is <Person>
-    let vec = vec![new_p.clone(), new_p.clone()];
-    Person::insert_many(vec, &mut client);
-
-    let it = vec![1, 2, 3].into_iter().zip(
-        vec!["a", "b", "c"].into_iter()
-    ).map(|(id, email)| Person {
-        id,
-        email: email.to_string(),
-    });
-    Person::insert_many(it, &mut client);
-    
-    // structs reflecting complex raw query 
-    // leave the table attribute empty
-    #[derive(ORM, Debug, Default, Serialize, Deserialize)]
-    #[ssql(table)] 
-    pub struct PersonRaw {
-        #[ssql(primary_key)]
-        pub(crate) id: i32,
-        pub(crate) email: String,
-        dt: Option<NaiveDateTime>
-    }
-
-    let query = PersonRaw::query()
-        .raw("SELECT * FROM Person where id = @p1", &[&1]);
-    
-    let data = query.get_struct::<PersonRaw>(&mut client).await;
+    let (df1, df2) = query.get_dataframe_2::<Person, Posts>(client).await?;
 }
-
-
 ```
 
 
 ### TODO:
-> 1. handling multiple relationships
-> 2. build filter pattern
-> 3. support raw sql string query
-> 4. handle non-manual input key like auto-generated id
+- [ ] handle multiple relationships
+- [x] build filter pattern
+- [x] support raw sql string query
+- [x] handle non-manual input key like auto-generated id
+- [ ] handle `GROUP BY` aggregation
+- [ ] support filter with decorated col like `WHERE YEAR(datetime_col) = ?`
