@@ -366,26 +366,51 @@ pub trait SsqlMarker: Sized {
     /// Insert one item, consume self.
     /// ```no_run
     /// # use ssql::prelude::*;
-    /// # #[derive(ORM)]
-    /// # #[ssql(table = person)]
-    /// # struct Person{
-    /// #    id: i32,
-    /// #    email: Option<String>,
-    /// # }
+    ///  #[derive(ORM)]
+    ///  #[ssql(table = person)]
+    ///  struct Person{
+    ///     id: i32,
+    ///     email: Option<String>,
+    ///  }
     /// # async fn insert(mut conn: Client<Compat<TcpStream>>) {
-    ///     let person = Person{id: 1,email: Some("a@gmail.com".to_string())};
-    ///     person.insert(&mut conn).await;
+    ///  let person = Person{id: 1,email: Some("a@gmail.com".to_string())};
+    ///  person.insert(&mut conn).await;
     /// # }
     /// ```
+    /// SQL: `INSERT INTO person (id, email) VALUES ( 1, 'a@gmail.com')`
     async fn insert(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
 
-    /// Delete one item based on primary key, consume self.
+    /// Insert one item while ignoring the primary key.
+    /// Specified for those using `Identity` or `Auto-Increment` as primary key.
+    /// If primary key is not set, this fn will perform as same as [`insert`]
+    ///
+    /// [`insert`]: trait.SsqlMarker.html#tymethod.insert
+    ///
     /// ```no_run
     /// # use ssql::prelude::*;
     ///  #[derive(ORM)]
     ///  #[ssql(table = person)]
     ///  struct Person{
-    ///      #[ssql(primary_key)]
+    ///     #[ssql(primary_key)]
+    ///     id: i32,
+    ///     email: Option<String>,
+    ///  }
+    /// # async fn insert(mut conn: Client<Compat<TcpStream>>) {
+    ///  let person = Person{id: 1,email: Some("a@gmail.com".to_string())};
+    ///  person.insert(&mut conn).await;
+    /// # }
+    /// ```
+    /// SQL: `INSERT INTO person (email) VALUES ('a@gmail.com')`
+    async fn insert_ignore_pk(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
+
+    /// Delete one item based on primary key, consume self.
+    /// Will panic if primary key is not set.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    ///  #[derive(ORM)]
+    ///  #[ssql(table = person)]
+    ///  struct Person{
+    ///     #[ssql(primary_key)]
     ///     id: i32,
     ///     email: Option<String>,
     ///  }
@@ -398,6 +423,7 @@ pub trait SsqlMarker: Sized {
     async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
 
     /// Update one item based on primary key, borrow self.
+    /// Will panic if primary key is not set.
     /// ```no_run
     /// # use ssql::prelude::*;
     ///  #[derive(ORM)]

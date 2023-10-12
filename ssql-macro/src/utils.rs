@@ -1,6 +1,5 @@
-use syn::{Expr, Meta, Path};
-use syn::punctuated::Punctuated;
-use syn::token::Comma;
+use syn::{Expr, ExprLit, Field, Lit};
+use syn::{Meta, Path, punctuated::Punctuated, token::Comma};
 
 pub(crate) fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
     use syn::{GenericArgument, PathArguments, PathSegment};
@@ -88,3 +87,72 @@ pub(crate) fn parse_table_name(attrs: &Vec<syn::Attribute>) -> String {
         _ => format!("{}.{}", table.1, table.0)
     }
 }
+
+pub(crate) fn get_relations_and_tables_and_pk(table_name: &String, fields: &Punctuated<Field, Comma>) -> (Vec<String>, Vec<String>, Option<Field>) {
+    let mut relations: Vec<String> = vec![];
+    let mut tables: Vec<String> = vec![];
+    let mut primary_key = None;
+    for field in fields.iter() {
+        for attr in field.attrs.iter() {
+            if let Some(ident) = attr.path().get_ident() {
+                if ident == "ssql" {
+                    if let Ok(list) = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated) {
+                        for meta in list.iter() {
+                            if let Meta::Path(path) = meta {
+                                let Path { ref segments, .. } = path;
+                                for ssql_tags in segments.iter() {
+                                    if ssql_tags.ident == "primary_key" {
+                                        primary_key = Some(field.clone());
+                                    }
+                                }
+                            }
+
+                            if let Meta::NameValue(named_v) = meta {
+                                let Path { ref segments, .. } = &named_v.path;
+                                for ssql_tags in segments.iter() {
+                                    if ssql_tags.ident == "foreign_key" {
+                                        if let Expr::Lit(ExprLit { lit, .. }) = &named_v.value {
+                                            if let Lit::Str(v) = lit {
+                                                let field_name = field.ident.as_ref().unwrap().to_string();
+                                                relations.push(format!("{}.{} = {}", &table_name, field_name, v.value()));
+                                                tables.push(v.value()[..v.value().rfind('.').unwrap()].to_string());
+                                            }
+                                        }
+                                        // if let Expr::Path(p_v) = &named_v.value {
+                                        //     dbg!(&p_v);
+                                        //     for seg in p_v.path.segments.iter() {
+                                        //         let i = &seg.ident;
+                                        //         result.extend(quote! {
+                                        //                 impl #struct_name {
+                                        //                     fn #i() -> String{
+                                        //                         "asdf".to_string()
+                                        //                     }
+                                        //                 }
+                                        //             })
+                                        //     }
+                                        // }
+                                        // if let Expr::Lit{, ..} = &named_v.value {
+                                        //     dbg!(&p_v);
+                                        //     for seg in p_v.path.segments.iter() {
+                                        //         let i = &seg.ident;
+                                        //         result.extend(quote! {
+                                        //                 impl #struct_name {
+                                        //                     fn #i() -> String{
+                                        //                         "asdf".to_string()
+                                        //                     }
+                                        //                 }
+                                        //             })
+                                        //     }
+                                        // }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    (relations, tables, primary_key)
+}
+

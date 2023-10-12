@@ -1,21 +1,18 @@
 use proc_macro::TokenStream;
 
 use quote::{quote, ToTokens};
-// no need to import a specific crate for TokenStream
-use syn::{Expr, ExprLit, Lit};
-use syn::{Meta, Path, punctuated::Punctuated, token::Comma};
 use syn::Data::Struct;
 use syn::DataStruct;
 use syn::Fields::Named;
 use syn::FieldsNamed;
 
 use crate::utils::{
-    parse_table_name,
     extract_type_from_option,
+    get_relations_and_tables_and_pk,
+    parse_table_name,
 };
 
 mod utils;
-
 
 
 #[proc_macro_derive(ORM, attributes(ssql))]
@@ -29,6 +26,8 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
         Struct(DataStruct { fields: Named(FieldsNamed { ref named, .. }), .. }) => named,
         _ => unimplemented!()
     };
+
+    let (relations, tables, primary_key) = get_relations_and_tables_and_pk(&table_name, fields);
 
     let builder_types = fields.iter().map(|f| {
         let mn = f.clone().ident.unwrap().to_string();
@@ -94,11 +93,30 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
         f.clone().ident.unwrap()
     )
         // .filter(|x| { *x.to_string() != "id".to_string() })
-        .map(|f| return quote! {&self.#f});
+        .map(|f| quote! {&self.#f});
+
+    // for insert one without primary key
+    let builder_insert_fields_ignore_pk = fields.iter()
+        .filter(|f| Some(*f) != primary_key.as_ref())
+        .map(|f| { f.clone().ident.unwrap().to_string() })
+        .reduce(|cur: String, next: String| format!("{},{}", cur, &next)).unwrap();
+    let mut fields_count = 0;
+    let builder_insert_params_ignore_pk = fields.iter()
+        .filter(|f| Some(*f) != primary_key.as_ref())
+        .map(|_| {
+            fields_count += 1;
+            return format!("@p{}", fields_count);
+        })
+        .reduce(|cur: String, next: String| format!("{},{}", cur, &next)).unwrap();
+    let builder_insert_data_ignore_pk = fields.iter()
+        .filter(|f| Some(*f) != primary_key.as_ref())
+        .map(|f|f.clone().ident.unwrap())
+        .map(|f| quote! {&self.#f});
 
     // for update one
     fields_count = 0;
     let builder_update_fields = fields.iter()
+        .filter(|f| Some(*f) != primary_key.as_ref())
         .map(|f| {
             fields_count += 1;
             return format!(" {} = @p{}", f.clone().ident.unwrap().to_string(), fields_count);
@@ -178,70 +196,6 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
     let mut result = quote! {
     };
 
-    let mut relations: Vec<String> = vec![];
-    let mut tables: Vec<String> = vec![];
-    let mut primary_key = None;
-    for field in fields.iter() {
-        for attr in field.attrs.iter() {
-            if let Some(ident) = attr.path().get_ident() {
-                if ident == "ssql" {
-                    if let Ok(list) = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated) {
-                        for meta in list.iter() {
-                            if let Meta::Path(path) = meta {
-                                let Path { ref segments, .. } = path;
-                                for ssql_tags in segments.iter() {
-                                    if ssql_tags.ident == "primary_key" {
-                                        primary_key = Some(field.clone());
-                                    }
-                                }
-                            }
-
-                            if let Meta::NameValue(named_v) = meta {
-                                let Path { ref segments, .. } = &named_v.path;
-                                for ssql_tags in segments.iter() {
-                                    if ssql_tags.ident == "foreign_key" {
-                                        if let Expr::Lit(ExprLit { lit, .. }) = &named_v.value {
-                                            if let Lit::Str(v) = lit {
-                                                let field_name = field.ident.as_ref().unwrap().to_string();
-                                                relations.push(format!("{}.{} = {}", &table_name, field_name, v.value()));
-                                                tables.push(v.value()[..v.value().rfind('.').unwrap()].to_string());
-                                            }
-                                        }
-                                        // if let Expr::Path(p_v) = &named_v.value {
-                                        //     dbg!(&p_v);
-                                        //     for seg in p_v.path.segments.iter() {
-                                        //         let i = &seg.ident;
-                                        //         result.extend(quote! {
-                                        //                 impl #struct_name {
-                                        //                     fn #i() -> String{
-                                        //                         "asdf".to_string()
-                                        //                     }
-                                        //                 }
-                                        //             })
-                                        //     }
-                                        // }
-                                        // if let Expr::Lit{, ..} = &named_v.value {
-                                        //     dbg!(&p_v);
-                                        //     for seg in p_v.path.segments.iter() {
-                                        //         let i = &seg.ident;
-                                        //         result.extend(quote! {
-                                        //                 impl #struct_name {
-                                        //                     fn #i() -> String{
-                                        //                         "asdf".to_string()
-                                        //                     }
-                                        //                 }
-                                        //             })
-                                        //     }
-                                        // }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     let builder_fields = relations.iter().zip(tables.iter()).map(|(rel, tb)| {
         quote! { #tb => {
@@ -250,9 +204,9 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
         }}
     });
 
-    let pk = if let Some(f) = primary_key {
+    let pk = if let Some(f) = &primary_key {
         let field_name = f.ident.as_ref().unwrap().to_string();
-        let mn = f.ident.unwrap();
+        let mn = f.ident.as_ref().unwrap();
         quote! {
             impl #struct_name {
                 fn primary_key(&self) -> (&'static str, &dyn ToSql) {
@@ -319,6 +273,12 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
                 Ok(())
             }
 
+            async fn insert_ignore_pk(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()> {
+                let sql = format!("INSERT INTO {} ({}) values({})", #table_name, #builder_insert_fields_ignore_pk, #builder_insert_params_ignore_pk);
+                conn.execute(sql, &[#(#builder_insert_data_ignore_pk,)*]).await?;
+                Ok(())
+            }
+
             async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()> {
                 let (pk, dt) = self.primary_key();
                 conn.execute(format!("DELETE FROM {} WHERE {} = @p1", #table_name, pk), &[dt]).await?;
@@ -351,7 +311,6 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
 
         }
     });
-
 
 
     #[cfg(feature = "polars")]
