@@ -226,7 +226,7 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
     result.extend(pk);
 
     result.extend(quote! {
-        #[async_trait(?Send)]
+        #[async_trait]
         impl SsqlMarker for #struct_name {
             fn table_name() -> &'static str {
                 #table_name
@@ -254,7 +254,7 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
                     #struct_name::relationship)
             }
 
-            async fn insert_many(iter: impl IntoIterator<Item = #struct_name> , conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>
+            async fn insert_many(iter: impl IntoIterator<Item=#struct_name, IntoIter=impl Iterator<Item=#struct_name> + Send>+Send, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>
             // where I:  impl Iterator<Item = #struct_name>
             {
                 let mut req = conn.bulk_insert(#table_name).await?;

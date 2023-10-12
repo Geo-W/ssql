@@ -307,7 +307,7 @@ impl<'a, T> QueryBuilder<'a, T, NormalQuery>
 
 
 /// a trait automatically derived via `#[derive(ORM)]` macro, all these methods are available.
-#[async_trait(? Send)]
+#[async_trait]
 pub trait SsqlMarker: Sized {
     #[doc(hidden)]
     fn table_name() -> &'static str;
@@ -361,7 +361,7 @@ pub trait SsqlMarker: Sized {
     ///         }), &mut conn).await
     /// # }
     /// ```
-    async fn insert_many(iter: impl IntoIterator<Item=Self>, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>;
+    async fn insert_many(iter: impl IntoIterator<Item=Self, IntoIter=impl Iterator<Item=Self> + Send> + Send, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>;
 
     /// Insert one item, consume self.
     /// ```no_run
