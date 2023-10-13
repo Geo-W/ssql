@@ -254,8 +254,8 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
                     #struct_name::relationship)
             }
 
-            async fn insert_many(iter: impl IntoIterator<Item=#struct_name, IntoIter=impl Iterator<Item=#struct_name> + Send>+Send, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>
-            // where I:  impl Iterator<Item = #struct_name>
+            async fn insert_many<I: IntoIterator<Item=Self> + Send>(iter: I, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>
+                where I::IntoIter: Send
             {
                 let mut req = conn.bulk_insert(#table_name).await?;
                 for item in iter{

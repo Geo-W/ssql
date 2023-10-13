@@ -317,8 +317,10 @@ pub trait SsqlMarker: Sized {
     fn row_to_json(row: &tiberius::Row) -> Map<String, Value>;
     #[doc(hidden)]
     fn row_to_struct(row: &tiberius::Row) -> Self;
+
     /// Generate a query builder for the struct.
     fn query<'a>() -> QueryBuilder<'a, Self>;
+
     /// Generate raw query instance for the struct.
     fn raw_query<'a>(sql: &str, params: &[&'a dyn ToSql]) -> QueryBuilder<'a, Self, RawQuery> {
         let mut q = QueryBuilder {
@@ -338,6 +340,7 @@ pub trait SsqlMarker: Sized {
         }
         q
     }
+
     /// Bulk insert, takes everything that can be turned into iterator that generate specific structs.
     /// ```no_run
     /// # use ssql::prelude::*;
@@ -361,7 +364,8 @@ pub trait SsqlMarker: Sized {
     ///         }), &mut conn).await
     /// # }
     /// ```
-    async fn insert_many(iter: impl IntoIterator<Item=Self, IntoIter=impl Iterator<Item=Self> + Send> + Send, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>;
+    async fn insert_many<I: IntoIterator<Item=Self> + Send>(iter: I, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>
+        where I::IntoIter: Send;
 
     /// Insert one item, consume self.
     /// ```no_run
