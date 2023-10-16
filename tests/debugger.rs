@@ -1,3 +1,4 @@
+#![allow(warnings, unused)]
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -7,11 +8,15 @@ mod tests {
     use tokio_util::compat::Compat;
 
     use ssql::prelude::*;
+    use super::*;
 
     #[tokio::test]
     async fn test() {
-        // let mut client = get_client().await;
-        // let mut query = Customerlist::query();
+        let mut client = ssql::utils::get_client("", "", "", "").await;
+        let mut query = Person::query();
+        let it = vec![Person { id: 5, Email: "a".to_string() }, Person { id: 6, Email: "a".to_string() }];
+        let a = Person::insert_many(it, &mut client).await;
+        dbg!(&a);
         // query.find_all(&mut client).await.unwrap();
         // .join::<Test>();
     }
@@ -104,19 +109,19 @@ impl SsqlMarker for Person {
     //     })
     // }
 
-    async fn insert_many(iter:impl IntoIterator<Item=Person, IntoIter=impl Iterator<Item=Person> + Send> + Send,
-                         conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>
+    async fn insert_many<I: IntoIterator<Item=Person> + Send>(iter: I,
+                                                              conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>
+        where I::IntoIter: Send
     // where <Iterator<Item=Person> as IntoIterator>::IntoIter: Send
     //     <dyn IntoIterator<Item=Person> + Send  as IntoIterator>::IntoIter: Send
     {
-        let a = iter.into_iter();
         let mut req = conn.bulk_insert("Person").await?;
-        // for item in iter {
-        //     let mut row = TokenRow::new();
-        //     row.push(item.id.into_sql());
-        //     row.push(item.Email.into_sql());
-        //     // req.send(row).await?;
-        // }
+        for item in iter {
+            let mut row = TokenRow::new();
+            row.push(item.id.into_sql());
+            row.push(item.Email.into_sql());
+            // req.send(row).await?;
+        }
         let res = req.finalize().await?;
         Ok(res.total())
     }

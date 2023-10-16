@@ -26,11 +26,11 @@ mod tests {
         let mut client = get_client().await;
         let mut query = Customerlist::query()
             .filter(
-                Customerlist::col("ship_to_id")?.contains(&"1239706")
+                Customerlist::col("ship_to_id")?.contains(&"9706")
             )?;
-            // .filter(
-            //     Customerlist::col("volume")?.eq(&666)
-            // )?;
+        // .filter(
+        //     Customerlist::col("volume")?.eq(&666)
+        // )?;
         let a = query.get_struct::<Customerlist>(&mut client).await?;
         dbg!(a);
         Ok(())
@@ -39,11 +39,11 @@ mod tests {
     #[tokio::test]
     async fn insert_many() {
         let mut conn = get_client().await;
-        let it = vec![Person { id: 5, Email: "a".to_string() }, Person { id: 6, Email: "a".to_string() }].into_iter();
-        let _a = Person::insert_many(it, &mut conn).await;
-        let it = vec![Person { id: 5, Email: "a".to_string() }, Person { id: 6, Email: "a".to_string() }];
+        let it = vec![Person { id: 5, Email: "a".to_string(), dt: None }, Person { id: 6, Email: "a".to_string(), dt: None }];
+        let _a = Person::insert_many(it.clone().into_iter(), &mut conn).await;
         let a = Person::insert_many(it, &mut conn).await;
-        dbg!(&a);
+        assert_eq!(_a.unwrap(), 2);
+        assert_eq!(a.unwrap(), 2);
     }
 
     #[tokio::test]
@@ -51,9 +51,10 @@ mod tests {
         let mut conn = get_client().await;
         let item = Person {
             id: 1,
-            Email: "".to_string(),
+            Email: "f".to_string(),
+            dt: None,
         };
-        let ret = item.insert(&mut conn).await;
+        let ret = item.insert_ignore_pk(&mut conn).await;
         assert_eq!(ret.is_ok(), true);
     }
 
@@ -62,6 +63,7 @@ mod tests {
         let p = Person {
             id: 1,
             Email: "".to_string(),
+            dt: None,
         };
         let mut conn = get_client().await;
         assert_eq!(p.delete(&mut conn).await.is_ok(), true);
@@ -72,6 +74,7 @@ mod tests {
         let p = Person {
             id: 99,
             Email: "".to_string(),
+            dt: None,
         };
         let mut conn = get_client().await;
         assert_eq!(p.update(&mut conn).await.is_ok(), true);
@@ -109,12 +112,13 @@ mod tests {
         // pub(crate) Generated_Time: Option<NaiveDateTime>,
     }
 
-    #[derive(ORM, Debug, Default)]
+    #[derive(ORM, Debug, Clone, Default)]
     #[ssql(table = Person)]
     pub struct Person {
         #[ssql(primary_key)]
         pub(crate) id: i32,
         pub(crate) Email: String,
+        dt: Option<NaiveDateTime>,
     }
 
     #[derive(ORM, Debug, Default, Serialize, Deserialize)]
