@@ -308,21 +308,23 @@ impl<'a, T> QueryBuilder<'a, T, NormalQuery>
 
 /// a trait automatically derived via `#[derive(ORM)]` macro, all these methods are available.
 #[async_trait]
-pub trait SsqlMarker: Sized {
+pub trait SsqlMarker {
     #[doc(hidden)]
-    fn table_name() -> &'static str;
+    fn table_name() -> &'static str where Self: Sized;
     #[doc(hidden)]
-    fn fields() -> Vec<&'static str>;
+    fn fields() -> Vec<&'static str> where Self: Sized;
     #[doc(hidden)]
-    fn row_to_json(row: &tiberius::Row) -> Map<String, Value>;
+    fn row_to_json(row: &tiberius::Row) -> Map<String, Value> where Self: Sized;
     #[doc(hidden)]
-    fn row_to_struct(row: &tiberius::Row) -> Self;
+    fn row_to_struct(row: &tiberius::Row) -> Self where Self: Sized;
 
     /// Generate a query builder for the struct.
-    fn query<'a>() -> QueryBuilder<'a, Self>;
+    fn query<'a>() -> QueryBuilder<'a, Self> where Self: Sized;
 
     /// Generate raw query instance for the struct.
-    fn raw_query<'a>(sql: &str, params: &[&'a dyn ToSql]) -> QueryBuilder<'a, Self, RawQuery> {
+    fn raw_query<'a>(sql: &str, params: &[&'a dyn ToSql]) -> QueryBuilder<'a, Self, RawQuery>
+        where Self: Sized
+    {
         let mut q = QueryBuilder {
             fields: Default::default(),
             filters: vec![],
@@ -365,7 +367,7 @@ pub trait SsqlMarker: Sized {
     /// # }
     /// ```
     async fn insert_many<I: IntoIterator<Item=Self> + Send>(iter: I, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>
-        where I::IntoIter: Send;
+        where I::IntoIter: Send, Self: Sized;
 
     /// Insert one item, consume self.
     /// ```no_run
@@ -450,7 +452,9 @@ pub trait SsqlMarker: Sized {
     /// Thus it returns [`SsqlResult`]
     ///
     /// [`SsqlResult`]: type.SsqlResult.html
-    fn col(field: &'static str) -> SsqlResult<ColExpr> {
+    fn col(field: &'static str) -> SsqlResult<ColExpr>
+        where Self: Sized
+    {
         match Self::fields().contains(&field) {
             true => {
                 Ok(ColExpr { table: Self::table_name(), field })

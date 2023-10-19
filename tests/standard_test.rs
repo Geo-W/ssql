@@ -89,6 +89,15 @@ mod tests {
         assert_eq!(m.is_ok(), true);
     }
 
+    #[test]
+    fn is_normal() {
+        fn async_safe<T: Sized + Send + Sync + Unpin>(_:T) {}
+
+        fn _object_safety(_: &dyn SsqlMarker) {}
+
+        async_safe(PersonRaw::default());
+    }
+
     pub async fn get_client() -> Client<Compat<TcpStream>> {
         ssql::utils::get_client("username", "password", "host", "database").await
     }
