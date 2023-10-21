@@ -268,35 +268,8 @@ impl<'a, T> QueryBuilder<'a, T, NormalQuery>
         (self.relation_func)(table)
     }
 
-    /// Perform a query with raw SQL string.
-    /// After calling this method,
-    /// all other supplements (e.g. join/filter) in the instance will be ignored.
-    /// ```
-    /// # use ssql::prelude::*;
-    /// # use chrono::NaiveDateTime;
-    ///  #[derive(ORM)]
-    ///  #[ssql(table)]
-    ///  pub struct PersonRaw {
-    ///     #[ssql(primary_key)]
-    ///     id: i32,
-    ///     email: String,
-    ///     dt: Option<NaiveDateTime>
-    ///  }
-    ///
-    ///  // make sure all fields in the struct are present in the query.
-    ///  let query = PersonRaw::query()
-    ///         .raw("SELECT id, email, dt FROM Person where id = @p1", &[&1]);
-    /// ```
-    pub fn raw<'b: 'a>(mut self, sql: impl ToString, params: &[&'b dyn ToSql]) -> Self {
-        self.raw_sql = Some(sql.to_string());
-        for p in params {
-            self.query_params.push(*p);
-        }
-        self
-    }
     fn get_where_clause(&self) -> String {
-        match self.filters.iter()
-            .map(|x| x.clone())
+        match self.filters.iter().cloned()
             .reduce(|cur, nxt| format!("{} AND {}", cur, nxt))
         {
             None => "".to_string(),
@@ -321,7 +294,23 @@ pub trait SsqlMarker {
     /// Generate a query builder for the struct.
     fn query<'a>() -> QueryBuilder<'a, Self> where Self: Sized;
 
-    /// Generate raw query instance for the struct.
+    /// Generate raw query instance for the struct that can be used to
+    /// perform query with raw SQL string.
+    /// ```
+    /// # use ssql::prelude::*;
+    /// # use chrono::NaiveDateTime;
+    ///  #[derive(ORM)]
+    ///  #[ssql(table)]
+    ///  pub struct PersonRaw {
+    ///     #[ssql(primary_key)]
+    ///     id: i32,
+    ///     email: String,
+    ///     dt: Option<NaiveDateTime>
+    ///  }
+    ///
+    ///  // make sure all fields in the struct are present in the query.
+    ///  let query = PersonRaw::raw_query("SELECT id, email, dt FROM Person WHERE id = @p1", &[&1]);
+    /// ```
     fn raw_query<'a>(sql: &str, params: &[&'a dyn ToSql]) -> QueryBuilder<'a, Self, RawQuery>
         where Self: Sized
     {

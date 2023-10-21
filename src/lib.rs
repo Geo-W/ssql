@@ -123,7 +123,7 @@
 //! ```
 //!
 //! # Raw Sql Query
-//! Using [`query.raw()`] method to construct a raw sql query.
+//! Using [`raw_query`] method to construct a raw sql query.
 //! Field name are reflecting as column name in sql query result.
 //! ```
 //! use ssql::prelude::*;
@@ -138,10 +138,9 @@
 //!     email: String,
 //!     dt: Option<NaiveDateTime>
 //!  }
-//! async fn get<'a>(client: &'a mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<()> {
-//!  let query = PersonRaw::query()
-//!         .raw("SELECT id, email, dt FROM Person where id = @p1", &[&1]);
+//! async fn _get<'a>(client: &'a mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<()> {
 //!
+//! let query = PersonRaw::raw_query("SELECT id, email, dt FROM Person where id = @p1", &[&1]);
 //!  let data = query.get_struct::<PersonRaw>(client).await;
 //!  Ok(())
 //! }
@@ -150,7 +149,7 @@
 //! [`Table::query`]: trait.SsqlMarker.html#tymethod.query
 //! [`ColExpr`]: structs.filter.ColExpr.html
 //! [`QueryBuilder`]: struct.QueryBuilder.html
-//! [`query.raw()`]: struct.QueryBuilder.html#method.raw
+//! [`raw_query`]: trait.SsqlMarker.html#method.raw_query
 #![warn(missing_docs)]
 #[macro_use]
 pub(crate) mod macros;
