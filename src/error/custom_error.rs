@@ -24,10 +24,7 @@ pub enum SsqlError {
     RsRunningError(String),
 }
 
-
-impl std::error::Error for SsqlError {
-
-}
+impl std::error::Error for SsqlError {}
 
 impl serde::Serialize for SsqlError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -43,12 +40,12 @@ impl fmt::Display for SsqlError {
         let a = match self {
             SsqlError::SqlServerError(inner) => {
                 format!("Error occur when executing sql: {}", inner)
-            },
+            }
             #[cfg(feature = "polars")]
             SsqlError::PolarsError(inner) => {
                 format!("Error occur when transforming to polars: {}", inner)
             }
-            SsqlError::RsRunningError(inner) => {inner.to_string()}
+            SsqlError::RsRunningError(inner) => inner.to_string(),
         };
         write!(f, "{}", a)
     }
@@ -68,13 +65,13 @@ impl From<tiberius::error::Error> for SsqlError {
 }
 
 impl From<&'static str> for SsqlError {
-    fn from(value: &'static str) -> Self{
+    fn from(value: &'static str) -> Self {
         SsqlError::RsRunningError(value.to_string())
     }
 }
 
 impl From<String> for SsqlError {
-    fn from(value: String) -> Self{
+    fn from(value: String) -> Self {
         SsqlError::RsRunningError(value)
     }
 }
@@ -85,7 +82,6 @@ impl From<String> for SsqlError {
 //         AppError::new(value)
 //     }
 // }
-
 
 #[derive(Debug)]
 pub struct CustomError {

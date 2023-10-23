@@ -1,5 +1,5 @@
+use syn::{punctuated::Punctuated, token::Comma, Meta, Path};
 use syn::{Expr, ExprLit, Field, Lit};
-use syn::{Meta, Path, punctuated::Punctuated, token::Comma};
 
 pub(crate) fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
     use syn::{GenericArgument, PathArguments, PathSegment};
@@ -50,7 +50,8 @@ pub(crate) fn parse_table_name(attrs: &Vec<syn::Attribute>) -> String {
     for attr in attrs.iter() {
         if let Some(ident) = attr.path().get_ident() {
             if ident == "ssql" {
-                if let Ok(list) = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated) {
+                if let Ok(list) = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)
+                {
                     for meta in list.iter() {
                         if let Meta::NameValue(named_v) = meta {
                             let Path { ref segments, .. } = &named_v.path;
@@ -84,11 +85,14 @@ pub(crate) fn parse_table_name(attrs: &Vec<syn::Attribute>) -> String {
     match (table.0.as_str(), table.1.as_str()) {
         // ("", _) => unimplemented!(),
         (_, "") => table.0,
-        _ => format!("{}.{}", table.1, table.0)
+        _ => format!("{}.{}", table.1, table.0),
     }
 }
 
-pub(crate) fn get_relations_and_tables_and_pk(table_name: &String, fields: &Punctuated<Field, Comma>) -> (Vec<String>, Vec<String>, Option<Field>) {
+pub(crate) fn get_relations_and_tables_and_pk(
+    table_name: &String,
+    fields: &Punctuated<Field, Comma>,
+) -> (Vec<String>, Vec<String>, Option<Field>) {
     let mut relations: Vec<String> = vec![];
     let mut tables: Vec<String> = vec![];
     let mut primary_key = None;
@@ -96,7 +100,9 @@ pub(crate) fn get_relations_and_tables_and_pk(table_name: &String, fields: &Punc
         for attr in field.attrs.iter() {
             if let Some(ident) = attr.path().get_ident() {
                 if ident == "ssql" {
-                    if let Ok(list) = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated) {
+                    if let Ok(list) =
+                        attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)
+                    {
                         for meta in list.iter() {
                             if let Meta::Path(path) = meta {
                                 let Path { ref segments, .. } = path;
@@ -113,9 +119,18 @@ pub(crate) fn get_relations_and_tables_and_pk(table_name: &String, fields: &Punc
                                     if ssql_tags.ident == "foreign_key" {
                                         if let Expr::Lit(ExprLit { lit, .. }) = &named_v.value {
                                             if let Lit::Str(v) = lit {
-                                                let field_name = field.ident.as_ref().unwrap().to_string();
-                                                relations.push(format!("{}.{} = {}", &table_name, field_name, v.value()));
-                                                tables.push(v.value()[..v.value().rfind('.').unwrap()].to_string());
+                                                let field_name =
+                                                    field.ident.as_ref().unwrap().to_string();
+                                                relations.push(format!(
+                                                    "{}.{} = {}",
+                                                    &table_name,
+                                                    field_name,
+                                                    v.value()
+                                                ));
+                                                tables.push(
+                                                    v.value()[..v.value().rfind('.').unwrap()]
+                                                        .to_string(),
+                                                );
                                             }
                                         }
                                         // if let Expr::Path(p_v) = &named_v.value {
@@ -155,4 +170,3 @@ pub(crate) fn get_relations_and_tables_and_pk(table_name: &String, fields: &Punc
     }
     (relations, tables, primary_key)
 }
-

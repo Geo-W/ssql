@@ -13,7 +13,8 @@ mod tests {
     async fn data_frame() {
         let mut client = get_client().await;
         let df = Customerlist::query()
-            .get_dataframe::<Customerlist>(&mut client).await;
+            .get_dataframe::<Customerlist>(&mut client)
+            .await;
         println!("{:?}", df.unwrap());
         assert_eq!(1, 1);
     }
@@ -23,7 +24,9 @@ mod tests {
         let mut client = get_client().await;
         let (df1, df2) = Customerlist::query()
             .left_join::<Test>()
-            .get_dataframe_2::<Customerlist, Test>(&mut client).await.unwrap();
+            .get_dataframe_2::<Customerlist, Test>(&mut client)
+            .await
+            .unwrap();
         println!("{:?}", df1);
         println!("{:?}", df2);
         assert_eq!(1, 1);
@@ -38,7 +41,10 @@ mod tests {
         dbg!(now.elapsed());
 
         let now = std::time::Instant::now();
-        let query = Fcst::query().get_dataframe::<Fcst>(&mut client).await.unwrap();
+        let query = Fcst::query()
+            .get_dataframe::<Fcst>(&mut client)
+            .await
+            .unwrap();
         dbg!(&query);
         dbg!(now.elapsed());
     }
@@ -97,4 +103,3 @@ mod tests {
     //     Generated_Time: NaiveDateTime,
     // }
 }
-

@@ -19,40 +19,65 @@ pub struct NormalQuery;
 
 #[async_trait]
 pub trait Executable {
-    async fn execute<'b>(&self, conn: &'b mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<QueryStream<'b>>;
+    async fn execute<'b>(
+        &self,
+        conn: &'b mut tiberius::Client<Compat<TcpStream>>,
+    ) -> SsqlResult<QueryStream<'b>>;
 }
 
 #[async_trait]
 impl<'a, T> Executable for QueryBuilder<'a, T, NormalQuery>
-    where T: SsqlMarker + Send + Sync
+where
+    T: SsqlMarker + Send + Sync,
 {
-    async fn execute<'b>(&self, conn: &'b mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<QueryStream<'b>> {
-        let select_fields = self.fields.iter()
-            .map(|(table, fields)|
-                fields.iter().map(|field| format!(r#"{}.{} as "{}.{}""#, table, field, table, field))
-                    .reduce(|cur, nxt| format!("{},{}", cur, nxt)).unwrap()
-            )
-            .reduce(|cur, nxt| format!("{},{}", cur, nxt)).unwrap();
+    async fn execute<'b>(
+        &self,
+        conn: &'b mut tiberius::Client<Compat<TcpStream>>,
+    ) -> SsqlResult<QueryStream<'b>> {
+        let select_fields = self
+            .fields
+            .iter()
+            .map(|(table, fields)| {
+                fields
+                    .iter()
+                    .map(|field| format!(r#"{}.{} as "{}.{}""#, table, field, table, field))
+                    .reduce(|cur, nxt| format!("{},{}", cur, nxt))
+                    .unwrap()
+            })
+            .reduce(|cur, nxt| format!("{},{}", cur, nxt))
+            .unwrap();
 
         let where_clause = self.get_where_clause();
 
         // let mut stream = conn.simple_query(r#"SELECT ship_to_id as "CUSTOMER_LIST.ship_to_id", ship_to as "CUSTOMER_LIST.ship_to",
         // volume as "CUSTOMER_LIST.volume", container as "CUSTOMER_LIST.container" FROM CUSTOMER_LIST"#).await.unwrap();
-        let stream = conn.query(
-            format!("SELECT {} FROM {} {} {where_clause}", select_fields, T::table_name(), self.join),
-            self.query_params.as_slice(),
-        ).await?;
+        let stream = conn
+            .query(
+                format!(
+                    "SELECT {} FROM {} {} {where_clause}",
+                    select_fields,
+                    T::table_name(),
+                    self.join
+                ),
+                self.query_params.as_slice(),
+            )
+            .await?;
         Ok(stream)
     }
 }
 
 #[async_trait]
 impl<'a, T> Executable for QueryBuilder<'a, T, RawQuery>
-    where T: SsqlMarker + Send + Sync
+where
+    T: SsqlMarker + Send + Sync,
 {
-    async fn execute<'b>(&self, conn: &'b mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<QueryStream<'b>> {
-        let stream = conn.query(self.raw_sql.as_ref().unwrap(),
-                                self.query_params.as_slice()).await?;
+    async fn execute<'b>(
+        &self,
+        conn: &'b mut tiberius::Client<Compat<TcpStream>>,
+    ) -> SsqlResult<QueryStream<'b>> {
+        let stream = conn
+            .query(self.raw_sql.as_ref().unwrap(), self.query_params.as_slice())
+            .await?;
         Ok(stream)
     }
 }
@@ -75,34 +100,87 @@ pub struct QueryBuilder<'a, T: SsqlMarker, Stage = NormalQuery> {
 }
 
 impl<'a, T, Stage: 'static> QueryBuilder<'a, T, Stage>
-    where T: SsqlMarker,
-          QueryBuilder<'a, T, Stage>: Executable
+where
+    T: SsqlMarker,
+    QueryBuilder<'a, T, Stage>: Executable,
 {
     impl_get_data!(get_serialized, row_to_json, [A, ret1, Value]);
-    impl_get_data!(get_serialized_2, row_to_json, [A, ret1, Value, B, ret2, Value]);
-    impl_get_data!(get_serialized_3, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value]);
-    impl_get_data!(get_serialized_4, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value]);
-    impl_get_data!(get_serialized_5, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value, E, ret5, Value]);
+    impl_get_data!(
+        get_serialized_2,
+        row_to_json,
+        [A, ret1, Value, B, ret2, Value]
+    );
+    impl_get_data!(
+        get_serialized_3,
+        row_to_json,
+        [A, ret1, Value, B, ret2, Value, C, ret3, Value]
+    );
+    impl_get_data!(
+        get_serialized_4,
+        row_to_json,
+        [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value]
+    );
+    impl_get_data!(
+        get_serialized_5,
+        row_to_json,
+        [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value, E, ret5, Value]
+    );
 
     impl_get_data!(get_struct, row_to_struct, [A, ret1, A]);
     impl_get_data!(get_struct_2, row_to_struct, [A, ret1, A, B, ret2, B]);
-    impl_get_data!(get_struct_3, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C]);
-    impl_get_data!(get_struct_4, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D]);
-    impl_get_data!(get_struct_5, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D, E, ret5, E]);
+    impl_get_data!(
+        get_struct_3,
+        row_to_struct,
+        [A, ret1, A, B, ret2, B, C, ret3, C]
+    );
+    impl_get_data!(
+        get_struct_4,
+        row_to_struct,
+        [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D]
+    );
+    impl_get_data!(
+        get_struct_5,
+        row_to_struct,
+        [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D, E, ret5, E]
+    );
 
     impl_get_dataframe!(get_dataframe, get_struct, [A, ret1, DataFrame]);
-    impl_get_dataframe!(get_dataframe_2, get_struct_2, [A, ret1, DataFrame, B, ret2, DataFrame]);
-    impl_get_dataframe!(get_dataframe_3, get_struct_3, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame]);
-    impl_get_dataframe!(get_dataframe_4, get_struct_4, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame]);
-    impl_get_dataframe!(get_dataframe_5, get_struct_5, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame, E, ret5, DataFrame]);
+    impl_get_dataframe!(
+        get_dataframe_2,
+        get_struct_2,
+        [A, ret1, DataFrame, B, ret2, DataFrame]
+    );
+    impl_get_dataframe!(
+        get_dataframe_3,
+        get_struct_3,
+        [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame]
+    );
+    impl_get_dataframe!(
+        get_dataframe_4,
+        get_struct_4,
+        [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame]
+    );
+    impl_get_dataframe!(
+        get_dataframe_5,
+        get_struct_5,
+        [
+            A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame, E,
+            ret5, DataFrame
+        ]
+    );
 }
 
 impl<'a, T> QueryBuilder<'a, T, NormalQuery>
-    where T: SsqlMarker
+where
+    T: SsqlMarker,
 {
     #[doc(hidden)]
-    pub fn new<'b : 'a, C>(fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str) -> QueryBuilder<'b, C>
-        where C: SsqlMarker
+    pub fn new<'b: 'a, C>(
+        fields: (&'static str, Vec<&'static str>),
+        func: fn(&str) -> &'static str,
+    ) -> QueryBuilder<'b, C>
+    where
+        C: SsqlMarker,
     {
         QueryBuilder {
             tables: HashSet::from([fields.0]),
@@ -124,21 +202,23 @@ impl<'a, T> QueryBuilder<'a, T, NormalQuery>
         // self.query_params.push(filter_expr.conditions);
         match self.tables.contains(filter_expr.col.table) {
             true => {
-                self.filters.push(filter_expr.to_sql(&mut self.query_idx_counter, &mut self.query_params));
+                self.filters
+                    .push(filter_expr.to_sql(&mut self.query_idx_counter, &mut self.query_params));
                 Ok(self)
             }
-            false => {
-                Err("the filter applies to a table not in this builder".into())
-            }
+            false => Err("the filter applies to a table not in this builder".into()),
         }
     }
 
     fn join<B>(mut self, join_type: &str) -> QueryBuilder<'a, T>
-        where B: SsqlMarker {
+    where
+        B: SsqlMarker,
+    {
         let name = B::table_name();
         let fields = B::fields();
         let relation = self.find_relation(&name);
-        self.join.push_str(&format!(" {} JOIN {} ", join_type, relation));
+        self.join
+            .push_str(&format!(" {} JOIN {} ", join_type, relation));
         match self.fields.insert(&name, fields) {
             Some(_v) => panic!("table already joined."),
             None => {
@@ -173,7 +253,9 @@ impl<'a, T> QueryBuilder<'a, T, NormalQuery>
     /// ```
     /// SQL: `... FROM SCHEMA1.person LEFT JOIN posts ON SCHEMA1.Person.id = posts.person_id`
     pub fn left_join<B>(self) -> QueryBuilder<'a, T>
-        where B: SsqlMarker {
+    where
+        B: SsqlMarker,
+    {
         self.join::<B>("LEFT")
     }
 
@@ -202,7 +284,9 @@ impl<'a, T> QueryBuilder<'a, T, NormalQuery>
     /// ```
     /// SQL: `... FROM SCHEMA1.person RIGHT JOIN posts ON SCHEMA1.Person.id = posts.person_id`
     pub fn right_join<B>(self) -> QueryBuilder<'a, T>
-        where B: SsqlMarker {
+    where
+        B: SsqlMarker,
+    {
         self.join::<B>("RIGHT")
     }
 
@@ -231,7 +315,9 @@ impl<'a, T> QueryBuilder<'a, T, NormalQuery>
     /// ```
     /// SQL: `... FROM SCHEMA1.person INNER JOIN posts ON SCHEMA1.Person.id = posts.person_id`
     pub fn inner_join<B>(self) -> QueryBuilder<'a, T>
-        where B: SsqlMarker {
+    where
+        B: SsqlMarker,
+    {
         self.join::<B>("INNER")
     }
 
@@ -260,7 +346,9 @@ impl<'a, T> QueryBuilder<'a, T, NormalQuery>
     /// ```
     /// SQL: `... FROM SCHEMA1.person OUTER JOIN posts ON SCHEMA1.Person.id = posts.person_id`
     pub fn outer_join<B>(self) -> QueryBuilder<'a, T>
-        where B: SsqlMarker {
+    where
+        B: SsqlMarker,
+    {
         self.join::<B>("OUTER")
     }
 
@@ -269,30 +357,42 @@ impl<'a, T> QueryBuilder<'a, T, NormalQuery>
     }
 
     fn get_where_clause(&self) -> String {
-        match self.filters.iter().cloned()
+        match self
+            .filters
+            .iter()
+            .cloned()
             .reduce(|cur, nxt| format!("{} AND {}", cur, nxt))
         {
             None => "".to_string(),
-            Some(v) => format!(" WHERE {}", v)
+            Some(v) => format!(" WHERE {}", v),
         }
     }
 }
-
 
 /// a trait automatically derived via `#[derive(ORM)]` macro, all these methods are available.
 #[async_trait]
 pub trait SsqlMarker {
     #[doc(hidden)]
-    fn table_name() -> &'static str where Self: Sized;
+    fn table_name() -> &'static str
+    where
+        Self: Sized;
     #[doc(hidden)]
-    fn fields() -> Vec<&'static str> where Self: Sized;
+    fn fields() -> Vec<&'static str>
+    where
+        Self: Sized;
     #[doc(hidden)]
-    fn row_to_json(row: &tiberius::Row) -> Map<String, Value> where Self: Sized;
+    fn row_to_json(row: &tiberius::Row) -> Map<String, Value>
+    where
+        Self: Sized;
     #[doc(hidden)]
-    fn row_to_struct(row: &tiberius::Row) -> Self where Self: Sized;
+    fn row_to_struct(row: &tiberius::Row) -> Self
+    where
+        Self: Sized;
 
     /// Generate a query builder for the struct.
-    fn query<'a>() -> QueryBuilder<'a, Self> where Self: Sized;
+    fn query<'a>() -> QueryBuilder<'a, Self>
+    where
+        Self: Sized;
 
     /// Generate raw query instance for the struct that can be used to
     /// perform query with raw SQL string.
@@ -312,7 +412,8 @@ pub trait SsqlMarker {
     ///  let query = PersonRaw::raw_query("SELECT id, email, dt FROM Person WHERE id = @p1", &[&1]);
     /// ```
     fn raw_query<'a>(sql: &str, params: &[&'a dyn ToSql]) -> QueryBuilder<'a, Self, RawQuery>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         let mut q = QueryBuilder {
             fields: Default::default(),
@@ -355,8 +456,13 @@ pub trait SsqlMarker {
     ///         }), &mut conn).await
     /// # }
     /// ```
-    async fn insert_many<I: IntoIterator<Item=Self> + Send>(iter: I, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>
-        where I::IntoIter: Send, Self: Sized;
+    async fn insert_many<I: IntoIterator<Item = Self> + Send>(
+        iter: I,
+        conn: &mut Client<Compat<TcpStream>>,
+    ) -> SsqlResult<u64>
+    where
+        I::IntoIter: Send,
+        Self: Sized;
 
     /// Insert one item, consume self.
     /// ```no_run
@@ -442,15 +548,15 @@ pub trait SsqlMarker {
     ///
     /// [`SsqlResult`]: type.SsqlResult.html
     fn col(field: &'static str) -> SsqlResult<ColExpr>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         match Self::fields().contains(&field) {
-            true => {
-                Ok(ColExpr { table: Self::table_name(), field })
-            }
-            false => {
-                Err(format!("column {} not found in {}", field, Self::table_name()).into())
-            }
+            true => Ok(ColExpr {
+                table: Self::table_name(),
+                field,
+            }),
+            false => Err(format!("column {} not found in {}", field, Self::table_name()).into()),
         }
     }
 }
@@ -463,5 +569,6 @@ pub trait SsqlMarker {
 pub trait PolarsHelper {
     #[doc(hidden)]
     fn dataframe(vec: Vec<Self>) -> PolarsResult<DataFrame>
-        where Self: Sized;
+    where
+        Self: Sized;
 }

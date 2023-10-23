@@ -57,7 +57,9 @@ impl ColExpr {
     /// )?;
     /// ```
     /// SQL: `... WHERE person.id < 5`
-    pub fn lt(self, other: &dyn ToSql) -> FilterExpr { self.expr_wrapper(ConditionVar::Lt(other)) }
+    pub fn lt(self, other: &dyn ToSql) -> FilterExpr {
+        self.expr_wrapper(ConditionVar::Lt(other))
+    }
 
     /// generate filter expression checking whether this column is less or equal than a value.
     /// ```no_run
@@ -73,7 +75,9 @@ impl ColExpr {
     /// )?;
     /// ```
     /// SQL: `... WHERE person.id <= 5`
-    pub fn lt_eq(self, other: &dyn ToSql) -> FilterExpr { self.expr_wrapper(ConditionVar::LtEq(other)) }
+    pub fn lt_eq(self, other: &dyn ToSql) -> FilterExpr {
+        self.expr_wrapper(ConditionVar::LtEq(other))
+    }
 
     /// generate filter expression checking whether this column is greater than a value.
     /// ```no_run
@@ -89,7 +93,9 @@ impl ColExpr {
     /// )?;
     /// ```
     /// SQL: `... WHERE person.id > 5`
-    pub fn gt(self, other: &dyn ToSql) -> FilterExpr { self.expr_wrapper(ConditionVar::Gt(other)) }
+    pub fn gt(self, other: &dyn ToSql) -> FilterExpr {
+        self.expr_wrapper(ConditionVar::Gt(other))
+    }
 
     /// generate filter expression checking whether this column is greater or equal than a value.
     /// ```no_run
@@ -105,7 +111,9 @@ impl ColExpr {
     /// )?;
     /// ```
     /// SQL: `... WHERE person.id >= 5`
-    pub fn gt_eq(self, other: &dyn ToSql) -> FilterExpr { self.expr_wrapper(ConditionVar::GtEq(other)) }
+    pub fn gt_eq(self, other: &dyn ToSql) -> FilterExpr {
+        self.expr_wrapper(ConditionVar::GtEq(other))
+    }
 
     /// generate filter expression checking whether this column is null.
     /// ```no_run
@@ -212,9 +220,7 @@ impl ColExpr {
     /// ```
     /// SQL: `... WHERE person.id IN (3,4,5,6,7) `
     pub fn is_in(self, ls: &[impl ToSql]) -> FilterExpr {
-        let v = ls.iter()
-            .map(|x| x as &dyn ToSql)
-            .collect();
+        let v = ls.iter().map(|x| x as &dyn ToSql).collect();
         self.expr_wrapper(ConditionVar::IsIn(v))
     }
 
@@ -281,27 +287,46 @@ pub struct FilterExpr<'b> {
 impl<'b> FilterExpr<'b> {
     pub(crate) fn to_sql(&self, idx: &mut i32, query_params: &mut Vec<&'b dyn ToSql>) -> String {
         match self.or_cons.is_empty() {
-            true => {
-                self.to_sql_wrapper(idx, query_params)
-            }
+            true => self.to_sql_wrapper(idx, query_params),
             false => {
-                let tmp = self.or_cons.iter()
+                let tmp = self
+                    .or_cons
+                    .iter()
                     .chain([self])
                     .map(|x| x.to_sql_wrapper(idx, query_params))
-                    .reduce(|cur, nxt| format!("{cur} OR {nxt}")).unwrap();
+                    .reduce(|cur, nxt| format!("{cur} OR {nxt}"))
+                    .unwrap();
                 format!("( {} )", tmp)
             }
         }
     }
-    pub(crate) fn to_sql_wrapper(&self, idx: &mut i32, query_params: &mut Vec<&'b dyn ToSql>) -> String {
+    pub(crate) fn to_sql_wrapper(
+        &self,
+        idx: &mut i32,
+        query_params: &mut Vec<&'b dyn ToSql>,
+    ) -> String {
         match &self.con {
-            ConditionVar::Eq(v) | ConditionVar::Neq(v) | ConditionVar::Gt(v) | ConditionVar::GtEq(v) | ConditionVar::Lt(v) | ConditionVar::LtEq(v) => {
+            ConditionVar::Eq(v)
+            | ConditionVar::Neq(v)
+            | ConditionVar::Gt(v)
+            | ConditionVar::GtEq(v)
+            | ConditionVar::Lt(v)
+            | ConditionVar::LtEq(v) => {
                 query_params.push(*v);
                 *idx += 1;
-                format!(" {} {} @p{}", self.col.full_column_name(), self.con.to_sql_symbol(), idx)
+                format!(
+                    " {} {} @p{}",
+                    self.col.full_column_name(),
+                    self.con.to_sql_symbol(),
+                    idx
+                )
             }
             ConditionVar::IsNull | ConditionVar::IsNotNull => {
-                format!("{} {}", self.col.full_column_name(), self.con.to_sql_symbol())
+                format!(
+                    "{} {}",
+                    self.col.full_column_name(),
+                    self.con.to_sql_symbol()
+                )
             }
             ConditionVar::Contains(v) => {
                 format!("{} LIKE '%{}%' ", self.col.full_column_name(), v)
@@ -309,7 +334,8 @@ impl<'b> FilterExpr<'b> {
             ConditionVar::IsIn(v) => {
                 let mut i = *idx;
                 *idx += v.len() as i32;
-                let cond_params = v.iter()
+                let cond_params = v
+                    .iter()
                     .map(|_| {
                         i += 1;
                         format!("@p{}", i)
@@ -323,7 +349,12 @@ impl<'b> FilterExpr<'b> {
                 *idx += 2;
                 query_params.push(*v1);
                 query_params.push(*v2);
-                format!("{} BETWEEN @p{} AND @p{}", self.col.full_column_name(), *idx - 1, idx)
+                format!(
+                    "{} BETWEEN @p{} AND @p{}",
+                    self.col.full_column_name(),
+                    *idx - 1,
+                    idx
+                )
             }
             ConditionVar::StarsWith(v) => {
                 format!("{} LIKE '{}%' ", self.col.full_column_name(), v)
@@ -389,7 +420,7 @@ impl<'a> ConditionVar<'a> {
             ConditionVar::IsIn(_) => "",
             ConditionVar::Between(_) => "",
             ConditionVar::StarsWith(_) => "",
-            ConditionVar::EndsWith(_) => ""
+            ConditionVar::EndsWith(_) => "",
         }
     }
 }

@@ -6,14 +6,9 @@ use syn::DataStruct;
 use syn::Fields::Named;
 use syn::FieldsNamed;
 
-use crate::utils::{
-    extract_type_from_option,
-    get_relations_and_tables_and_pk,
-    parse_table_name,
-};
+use crate::utils::{extract_type_from_option, get_relations_and_tables_and_pk, parse_table_name};
 
 mod utils;
-
 
 #[proc_macro_derive(ORM, attributes(ssql))]
 pub fn ssql(tokens: TokenStream) -> TokenStream {
@@ -21,10 +16,12 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
     let table_name = parse_table_name(&ast.attrs);
     let struct_name = ast.ident;
 
-
     let fields = match ast.data {
-        Struct(DataStruct { fields: Named(FieldsNamed { ref named, .. }), .. }) => named,
-        _ => unimplemented!()
+        Struct(DataStruct {
+            fields: Named(FieldsNamed { ref named, .. }),
+            ..
+        }) => named,
+        _ => unimplemented!(),
     };
 
     let (relations, tables, primary_key) = get_relations_and_tables_and_pk(&table_name, fields);
@@ -79,54 +76,68 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
     });
 
     // for insert one
-    let builder_insert_fields = fields.iter()
-        .map(|f| { f.clone().ident.unwrap().to_string() })
-        .reduce(|cur: String, next: String| format!("{},{}", cur, &next)).unwrap();
+    let builder_insert_fields = fields
+        .iter()
+        .map(|f| f.clone().ident.unwrap().to_string())
+        .reduce(|cur: String, next: String| format!("{},{}", cur, &next))
+        .unwrap();
     let mut fields_count = 0;
-    let builder_insert_params = fields.iter()
+    let builder_insert_params = fields
+        .iter()
         .map(|_| {
             fields_count += 1;
             return format!("@p{}", fields_count);
         })
-        .reduce(|cur: String, next: String| format!("{},{}", cur, &next)).unwrap();
-    let builder_insert_data = fields.iter().map(|f|
-        f.clone().ident.unwrap()
-    )
+        .reduce(|cur: String, next: String| format!("{},{}", cur, &next))
+        .unwrap();
+    let builder_insert_data = fields
+        .iter()
+        .map(|f| f.clone().ident.unwrap())
         // .filter(|x| { *x.to_string() != "id".to_string() })
         .map(|f| quote! {&self.#f});
 
     // for insert one without primary key
-    let builder_insert_fields_ignore_pk = fields.iter()
+    let builder_insert_fields_ignore_pk = fields
+        .iter()
         .filter(|f| Some(*f) != primary_key.as_ref())
-        .map(|f| { f.clone().ident.unwrap().to_string() })
-        .reduce(|cur: String, next: String| format!("{},{}", cur, &next)).unwrap();
+        .map(|f| f.clone().ident.unwrap().to_string())
+        .reduce(|cur: String, next: String| format!("{},{}", cur, &next))
+        .unwrap();
     let mut fields_count = 0;
-    let builder_insert_params_ignore_pk = fields.iter()
+    let builder_insert_params_ignore_pk = fields
+        .iter()
         .filter(|f| Some(*f) != primary_key.as_ref())
         .map(|_| {
             fields_count += 1;
             return format!("@p{}", fields_count);
         })
-        .reduce(|cur: String, next: String| format!("{},{}", cur, &next)).unwrap();
-    let builder_insert_data_ignore_pk = fields.iter()
+        .reduce(|cur: String, next: String| format!("{},{}", cur, &next))
+        .unwrap();
+    let builder_insert_data_ignore_pk = fields
+        .iter()
         .filter(|f| Some(*f) != primary_key.as_ref())
-        .map(|f|f.clone().ident.unwrap())
+        .map(|f| f.clone().ident.unwrap())
         .map(|f| quote! {&self.#f});
 
     // for update one
     fields_count = 0;
-    let builder_update_fields = fields.iter()
+    let builder_update_fields = fields
+        .iter()
         .filter(|f| Some(*f) != primary_key.as_ref())
         .map(|f| {
             fields_count += 1;
-            return format!(" {} = @p{}", f.clone().ident.unwrap().to_string(), fields_count);
+            return format!(
+                " {} = @p{}",
+                f.clone().ident.unwrap().to_string(),
+                fields_count
+            );
         })
-        .reduce(|cur: String, next: String| format!("{},{}", cur, &next)).unwrap();
+        .reduce(|cur: String, next: String| format!("{},{}", cur, &next))
+        .unwrap();
     let builder_update_data = builder_insert_data_ignore_pk.clone();
 
-
     #[cfg(feature = "polars")]
-        let builder_new_vecs = fields.iter().map(|f| {
+    let builder_new_vecs = fields.iter().map(|f| {
         let field = f.clone().ident.unwrap();
         let ty = &f.ty;
         quote! {
@@ -135,7 +146,7 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
     });
 
     #[cfg(feature = "polars")]
-        let builder_insert_to_df = fields.iter().map(|f| {
+    let builder_insert_to_df = fields.iter().map(|f| {
         let field = f.clone().ident.unwrap();
         quote! {
             #field.push(Phant_Name1.#field)
@@ -143,7 +154,7 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
     });
 
     #[cfg(feature = "polars")]
-        let builder_df = fields.iter().map(|f| {
+    let builder_df = fields.iter().map(|f| {
         let field = f.clone().ident.unwrap();
         let mn = field.to_string();
         quote! {
@@ -156,7 +167,7 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
         let mn = f.clone().ident.unwrap();
         let field_name = match table_name.as_str() {
             "" => format!("{}", &mn),
-            _ => format!("{}.{}", &table_name, &mn)
+            _ => format!("{}.{}", &table_name, &mn),
         };
         let ty = &f.ty;
         return match extract_type_from_option(ty) {
@@ -193,9 +204,7 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
         };
     });
 
-    let mut result = quote! {
-    };
-
+    let mut result = quote! {};
 
     let builder_fields = relations.iter().zip(tables.iter()).map(|(rel, tb)| {
         quote! { #tb => {
@@ -312,7 +321,6 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
         }
     });
 
-
     #[cfg(feature = "polars")]
     result.extend(quote! {
         impl PolarsHelper for #struct_name {
@@ -331,4 +339,3 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
 
     result.into()
 }
-

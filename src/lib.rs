@@ -155,16 +155,15 @@
 pub(crate) mod macros;
 mod structs;
 
+mod error;
 /// All necessary imports for using this crate.
 pub mod prelude;
-mod error;
 
 /// Utility functions.
 pub mod utils;
 
-
-pub use error::custom_error::SsqlResult;
 pub use error::custom_error::SsqlError;
+pub use error::custom_error::SsqlResult;
 
 pub use structs::filter::ColExpr;
 pub use structs::filter::FilterExpr;

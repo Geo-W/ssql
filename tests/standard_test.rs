@@ -18,16 +18,16 @@ mod tests {
         let b = query.get_serialized::<Customerlist>(&mut client).await;
         dbg!(b.unwrap());
         let mut c = query.left_join::<SlowMoving>();
-        c.get_struct_2::<Customerlist, SlowMoving>(&mut client).await.unwrap();
+        c.get_struct_2::<Customerlist, SlowMoving>(&mut client)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
     async fn filter() -> SsqlResult<()> {
         let mut client = get_client().await;
-        let mut query = Customerlist::query()
-            .filter(
-                Customerlist::col("ship_to_id")?.contains(&"9706")
-            )?;
+        let mut query =
+            Customerlist::query().filter(Customerlist::col("ship_to_id")?.contains(&"9706"))?;
         // .filter(
         //     Customerlist::col("volume")?.eq(&666)
         // )?;
@@ -39,7 +39,18 @@ mod tests {
     #[tokio::test]
     async fn insert_many() {
         let mut conn = get_client().await;
-        let it = vec![Person { id: 5, Email: "a".to_string(), dt: None }, Person { id: 6, Email: "a".to_string(), dt: None }];
+        let it = vec![
+            Person {
+                id: 5,
+                Email: "a".to_string(),
+                dt: None,
+            },
+            Person {
+                id: 6,
+                Email: "a".to_string(),
+                dt: None,
+            },
+        ];
         let _a = Person::insert_many(it.clone().into_iter(), &mut conn).await;
         let a = Person::insert_many(it, &mut conn).await;
         assert_eq!(_a.unwrap(), 2);
@@ -80,7 +91,6 @@ mod tests {
         assert_eq!(p.update(&mut conn).await.is_ok(), true);
     }
 
-
     #[tokio::test]
     async fn raw_query_and_chrono() {
         let mut conn = get_client().await;
@@ -91,7 +101,7 @@ mod tests {
 
     #[test]
     fn is_normal() {
-        fn async_safe<T: Sized + Send + Sync + Unpin>(_:T) {}
+        fn async_safe<T: Sized + Send + Sync + Unpin>(_: T) {}
 
         fn _object_safety(_: &dyn SsqlMarker) {}
 
@@ -150,4 +160,3 @@ mod tests {
         Plant: Option<String>,
     }
 }
-
