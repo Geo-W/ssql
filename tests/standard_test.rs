@@ -2,6 +2,7 @@
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDateTime;
+    use futures_lite::StreamExt;
     use serde::{Deserialize, Serialize};
     use tiberius::Client;
     use tokio::net::TcpStream;

@@ -12,6 +12,7 @@ use tokio_util::compat::Compat;
 
 use crate::error::custom_error::SsqlResult;
 use crate::structs::filter::{ColExpr, FilterExpr};
+use crate::structs::stream::RowStream;
 
 pub struct RawQuery;
 
@@ -101,9 +102,30 @@ pub struct QueryBuilder<'a, T: SsqlMarker, Stage = NormalQuery> {
 
 impl<'a, T, Stage: 'static> QueryBuilder<'a, T, Stage>
 where
-    T: SsqlMarker,
+    T: SsqlMarker + 'static,
     QueryBuilder<'a, T, Stage>: Executable,
 {
+    /// configurable stream
+    pub async fn get_stream<F>(
+        &mut self,
+        conn: &'a mut tiberius::Client<Compat<TcpStream>>,
+        func: F,
+    ) -> SsqlResult<RowStream<'a, T>>
+    where
+        F: 'static + for<'b> Fn(&'b tiberius::Row) -> T,
+    {
+        let query_stream = self.execute(conn).await?;
+        Ok(RowStream::new(query_stream, func))
+    }
+
+    /// stream that returns struct
+    pub async fn get_stream_struct(
+        &mut self,
+        conn: &'a mut tiberius::Client<Compat<TcpStream>>,
+    ) -> SsqlResult<RowStream<'a, T>> {
+        self.get_stream(conn, T::row_to_struct).await
+    }
+
     impl_get_data!(get_serialized, row_to_json, [A, ret1, Value]);
     impl_get_data!(
         get_serialized_2,

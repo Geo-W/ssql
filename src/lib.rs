@@ -169,3 +169,4 @@ pub use structs::filter::ColExpr;
 pub use structs::filter::FilterExpr;
 pub use structs::querybuilder::QueryBuilder;
 pub use structs::querybuilder::SsqlMarker;
+pub use structs::stream::RowStream;
