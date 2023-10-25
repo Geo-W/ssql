@@ -49,13 +49,17 @@ where
             .unwrap();
 
         let where_clause = self.get_where_clause();
+        let order_clause = match self.order.is_empty() {
+            true => "".to_string(),
+            false => format!("ORDER BY {} ", self.order),
+        };
 
         // let mut stream = conn.simple_query(r#"SELECT ship_to_id as "CUSTOMER_LIST.ship_to_id", ship_to as "CUSTOMER_LIST.ship_to",
         // volume as "CUSTOMER_LIST.volume", container as "CUSTOMER_LIST.container" FROM CUSTOMER_LIST"#).await.unwrap();
         let stream = conn
             .query(
                 format!(
-                    "SELECT {} FROM {} {} {where_clause}",
+                    "SELECT {} FROM {} {} {where_clause} {order_clause}",
                     select_fields,
                     T::table_name(),
                     self.join
@@ -91,6 +95,7 @@ pub struct QueryBuilder<'a, T: SsqlMarker, Stage = NormalQuery> {
     pub(crate) filters: Vec<String>,
     pub(crate) join: String,
     tables: HashSet<&'static str>,
+    order: String,
     raw_sql: Option<String>,
     relation_func: fn(&str) -> &'static str,
     query_params: Vec<&'a dyn ToSql>,
@@ -127,69 +132,22 @@ where
     }
 
     impl_get_data!(get_serialized, row_to_json, [A, ret1, Value]);
-    impl_get_data!(
-        get_serialized_2,
-        row_to_json,
-        [A, ret1, Value, B, ret2, Value]
-    );
-    impl_get_data!(
-        get_serialized_3,
-        row_to_json,
-        [A, ret1, Value, B, ret2, Value, C, ret3, Value]
-    );
-    impl_get_data!(
-        get_serialized_4,
-        row_to_json,
-        [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value]
-    );
-    impl_get_data!(
-        get_serialized_5,
-        row_to_json,
-        [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value, E, ret5, Value]
-    );
+    impl_get_data!(get_serialized_2, row_to_json, [A, ret1, Value, B, ret2, Value]);
+    impl_get_data!(get_serialized_3, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value]);
+    impl_get_data!(get_serialized_4, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value]);
+    impl_get_data!(get_serialized_5, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value, E, ret5, Value]);
 
     impl_get_data!(get_struct, row_to_struct, [A, ret1, A]);
     impl_get_data!(get_struct_2, row_to_struct, [A, ret1, A, B, ret2, B]);
-    impl_get_data!(
-        get_struct_3,
-        row_to_struct,
-        [A, ret1, A, B, ret2, B, C, ret3, C]
-    );
-    impl_get_data!(
-        get_struct_4,
-        row_to_struct,
-        [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D]
-    );
-    impl_get_data!(
-        get_struct_5,
-        row_to_struct,
-        [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D, E, ret5, E]
-    );
+    impl_get_data!(get_struct_3, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C]);
+    impl_get_data!(get_struct_4, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D]);
+    impl_get_data!(get_struct_5, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D, E, ret5, E]);
 
     impl_get_dataframe!(get_dataframe, get_struct, [A, ret1, DataFrame]);
-    impl_get_dataframe!(
-        get_dataframe_2,
-        get_struct_2,
-        [A, ret1, DataFrame, B, ret2, DataFrame]
-    );
-    impl_get_dataframe!(
-        get_dataframe_3,
-        get_struct_3,
-        [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame]
-    );
-    impl_get_dataframe!(
-        get_dataframe_4,
-        get_struct_4,
-        [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame]
-    );
-    impl_get_dataframe!(
-        get_dataframe_5,
-        get_struct_5,
-        [
-            A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame, E,
-            ret5, DataFrame
-        ]
-    );
+    impl_get_dataframe!(get_dataframe_2, get_struct_2, [A, ret1, DataFrame, B, ret2, DataFrame]);
+    impl_get_dataframe!(get_dataframe_3, get_struct_3, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame]);
+    impl_get_dataframe!(get_dataframe_4, get_struct_4, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame]);
+    impl_get_dataframe!(get_dataframe_5, get_struct_5, [A, ret1, DataFrame, B, ret2, DataFrame, C, ret3, DataFrame, D, ret4, DataFrame, E, ret5, DataFrame]);
 }
 
 impl<'a, T> QueryBuilder<'a, T, NormalQuery>
@@ -215,6 +173,7 @@ where
             query_params: vec![],
             query_idx_counter: 0,
             _mark2: PhantomData,
+            order: "".to_string(),
         }
     }
 
@@ -229,6 +188,33 @@ where
                 Ok(self)
             }
             false => Err("the filter applies to a table not in this builder".into()),
+        }
+    }
+
+    /// Ordering the output by a specified column in ascending order.
+    pub fn order_by_asc(mut self, column: ColExpr) -> SsqlResult<Self> {
+        self.order_by(column, true)
+    }
+
+    /// Ordering the output by a specified column in descending order.
+    pub fn order_by_desc(mut self, column: ColExpr) -> SsqlResult<Self> {
+        self.order_by(column, false)
+    }
+
+    fn order_by(mut self, column: ColExpr, order_asc: bool) -> SsqlResult<Self> {
+        match self.tables.contains(column.table) {
+            true => {
+                if !self.order.is_empty() {
+                    self.order.push_str(", ")
+                }
+                self.order.push_str(&column.full_column_name());
+                match order_asc {
+                    true => self.order.push_str(" ASC"),
+                    false => self.order.push_str(" DESC"),
+                }
+                Ok(self)
+            }
+            false => Err("Try to make order on a table not in this builder".into()),
         }
     }
 
@@ -442,6 +428,7 @@ pub trait SsqlMarker {
             filters: vec![],
             join: "".to_string(),
             tables: Default::default(),
+            order: "".to_string(),
             raw_sql: Some(sql.to_string()),
             relation_func: |_| "",
             query_params: vec![],
