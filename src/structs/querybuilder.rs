@@ -100,13 +100,13 @@ pub struct QueryBuilder<'a, T: SsqlMarker, Stage = NormalQuery> {
     _mark2: PhantomData<Stage>,
 }
 
+#[rustfmt::skip]
 impl<'a, T, Stage: 'static> QueryBuilder<'a, T, Stage>
 where
     T: SsqlMarker + 'static,
     QueryBuilder<'a, T, Stage>: Executable,
 {
-    /// configurable stream
-    pub async fn get_stream<F>(
+    async fn stream<F>(
         &mut self,
         conn: &'a mut tiberius::Client<Compat<TcpStream>>,
         func: F,
@@ -118,12 +118,12 @@ where
         Ok(RowStream::new(query_stream, func))
     }
 
-    /// stream that returns struct
-    pub async fn get_stream_struct(
+    /// Get a streaming that producing Self struct.
+    pub async fn get_stream(
         &mut self,
         conn: &'a mut tiberius::Client<Compat<TcpStream>>,
     ) -> SsqlResult<RowStream<'a, T>> {
-        self.get_stream(conn, T::row_to_struct).await
+        self.stream(conn, T::row_to_struct).await
     }
 
     impl_get_data!(get_serialized, row_to_json, [A, ret1, Value]);

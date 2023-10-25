@@ -25,6 +25,15 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn stream() {
+        let mut client = get_client().await;
+        let mut stream = Customerlist::query().get_stream(&mut client).await.unwrap();
+        while let Some(v) = stream.next().await {
+            dbg!(&v);
+        }
+    }
+
+    #[tokio::test]
     async fn filter() -> SsqlResult<()> {
         let mut client = get_client().await;
         let mut query =
