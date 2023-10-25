@@ -112,7 +112,7 @@ where
         func: F,
     ) -> SsqlResult<RowStream<'a, T>>
     where
-        F: 'static + for<'b> Fn(&'b tiberius::Row) -> T,
+        F: 'static + for<'b> Fn(&'b tiberius::Row) -> T + Send,
     {
         let query_stream = self.execute(conn).await?;
         Ok(RowStream::new(query_stream, func))

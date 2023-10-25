@@ -11,13 +11,13 @@ use crate::SsqlMarker;
 /// stream
 pub struct RowStream<'a, T: SsqlMarker> {
     query_stream: QueryStream<'a>,
-    func: Box<dyn for<'b> Fn(&'b Row) -> T>,
+    func: Box<dyn for<'b> Fn(&'b Row) -> T + Send>,
 }
 
 impl<'a, T: SsqlMarker> RowStream<'a, T> {
     pub(crate) fn new<F>(stream: QueryStream<'a>, func: F) -> Self
     where
-        F: 'static + for<'b> Fn(&'b Row) -> T,
+        F: 'static + for<'b> Fn(&'b Row) -> T + Send,
     {
         Self {
             query_stream: stream,
