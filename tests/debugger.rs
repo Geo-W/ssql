@@ -7,25 +7,28 @@ mod tests {
     use tokio::net::TcpStream;
     use tokio_util::compat::Compat;
 
+
     use super::*;
     use ssql::prelude::*;
 
     #[tokio::test]
     async fn test() {
         let mut client = ssql::utils::get_client("", "", "", "").await;
-        let mut query = Person::query();
-        let it = vec![
-            Person {
-                id: 5,
-                Email: "a".to_string(),
-            },
-            Person {
-                id: 6,
-                Email: "a".to_string(),
-            },
-        ];
-        let a = Person::insert_many(it, &mut client).await;
-        dbg!(&a);
+        // let mut query = Person::query(Person::row_to_struct);
+        let a = QueryBuilder::<Person, Person>::new(("", vec![]), Person::relationship, Box::new(Person::row_to_struct));
+        // let it = vec![
+        //     Person {
+        //         id: 5,
+        //         Email: "a".to_string(),
+        //     },
+        //     Person {
+        //         id: 6,
+        //         Email: "a".to_string(),
+        //     },
+        // ];
+        // let a = Person::insert_many(it, &mut client).await;
+        // let a = query.get_struct(&mut client);
+        // dbg!(&a);
         // query.find_all(&mut client).await.unwrap();
         // .join::<Test>();
     }
@@ -33,7 +36,9 @@ mod tests {
 
 use ssql::prelude::*;
 use std::alloc;
+use std::marker::PhantomData;
 use std::vec::IntoIter;
+    use std::collections::{HashSet, HashMap};
 
 pub struct Person {
     pub(crate) id: i32,
@@ -63,14 +68,15 @@ impl SsqlMarker for Person {
         );
         map
     }
-    fn row_to_struct(row: &Row) -> Self {
+    fn row_to_struct(row: &Row) -> Person {
         Self {
             id: row.get::<i32, &str>("Person.id").unwrap(),
             Email: row.get::<&str, &str>("Person.Email").unwrap().to_string(),
         }
     }
-    fn query<'a>() -> QueryBuilder<'a, Person> {
-        QueryBuilder::<Person>::new(("Person", Person::fields()), Person::relationship)
+    fn query<'a>() -> QueryBuilder<'a, Self,Self>
+    {
+        QueryBuilder::<Person, Person>::new(("", vec![]), Person::relationship, Box::new(Person::row_to_struct))
     }
     // #[allow(
     // clippy::async_yields_async,
