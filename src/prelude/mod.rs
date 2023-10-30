@@ -3,6 +3,7 @@ pub use ssql_macro::ORM;
 pub use crate::error::custom_error::SsqlResult;
 pub use crate::structs::querybuilder::QueryBuilder;
 pub use crate::structs::querybuilder::SsqlMarker;
+pub use crate::structs::queryable::QueryAble;
 
 pub use tiberius::{self, Client, ColumnData, IntoRow, IntoSql, Row, ToSql, TokenRow};
 pub use tokio::net::TcpStream;

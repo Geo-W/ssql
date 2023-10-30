@@ -72,9 +72,9 @@ where
 }
 
 #[async_trait]
-impl<'a, T> Executable for QueryBuilder<'a, T, RawQuery>
+impl<'a, Ta> Executable for QueryBuilder<'a, Ta, RawQuery>
 where
-    T: SsqlMarker + Send + Sync,
+    Ta: SsqlMarker + Send + Sync,
 {
     async fn execute<'b>(
         &self,
