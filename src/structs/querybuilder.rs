@@ -125,8 +125,24 @@ where
         Ok(RowStream::new(query_stream, func))
     }
 
-    pub fn change_fn<NewRet>(mut self, new_fn: Box<dyn for<'b> Fn(&'b tiberius::Row) ->NewRet + 'static + Send + Sync >) -> QueryBuilder<'a, NewRet, T, Stage> {
-        QueryBuilder{func: new_fn, ..self}
+    pub fn change_fn<NewRet>(
+        mut self,
+        new_fn: Box<dyn for<'b> Fn(&'b tiberius::Row) -> NewRet + 'static + Send + Sync>,
+    ) -> QueryBuilder<'a, NewRet, T, Stage> {
+        QueryBuilder {
+            fields: self.fields,
+            filters: self.filters,
+            join: self.join,
+            tables: self.tables,
+            order: self.order,
+            raw_sql: self.raw_sql,
+            relation_func: self.relation_func,
+            query_params: self.query_params,
+            query_idx_counter: self.query_idx_counter,
+            func: new_fn,
+            _marker: self._marker,
+            _mark2: self._mark2,
+        }
     }
 
     /// Get a streaming that producing Self struct.
