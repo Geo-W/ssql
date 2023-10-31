@@ -218,7 +218,7 @@ where
         }
     }
 
-    fn join<B>(mut self, join_type: &str) -> QueryBuilder<'a, T>
+    fn join<B>(mut self, join_type: &str) -> Self
     where
         B: SsqlMarker,
     {
@@ -260,7 +260,7 @@ where
     /// let _ = Person::query().left_join::<Posts>();
     /// ```
     /// SQL: `... FROM SCHEMA1.person LEFT JOIN posts ON SCHEMA1.Person.id = posts.person_id`
-    pub fn left_join<B>(self) -> QueryBuilder<'a, T>
+    pub fn left_join<B>(self) -> Self
     where
         B: SsqlMarker,
     {
@@ -291,7 +291,7 @@ where
     /// let _ = Person::query().right_join::<Posts>();
     /// ```
     /// SQL: `... FROM SCHEMA1.person RIGHT JOIN posts ON SCHEMA1.Person.id = posts.person_id`
-    pub fn right_join<B>(self) -> QueryBuilder<'a, T>
+    pub fn right_join<B>(self) -> Self
     where
         B: SsqlMarker,
     {
@@ -322,7 +322,7 @@ where
     /// let _ = Person::query().inner_join::<Posts>();
     /// ```
     /// SQL: `... FROM SCHEMA1.person INNER JOIN posts ON SCHEMA1.Person.id = posts.person_id`
-    pub fn inner_join<B>(self) -> QueryBuilder<'a, T>
+    pub fn inner_join<B>(self) -> Self
     where
         B: SsqlMarker,
     {
@@ -353,7 +353,7 @@ where
     /// let _ = Person::query().outer_join::<Posts>();
     /// ```
     /// SQL: `... FROM SCHEMA1.person OUTER JOIN posts ON SCHEMA1.Person.id = posts.person_id`
-    pub fn outer_join<B>(self) -> QueryBuilder<'a, T>
+    pub fn outer_join<B>(self) -> Self
     where
         B: SsqlMarker,
     {
