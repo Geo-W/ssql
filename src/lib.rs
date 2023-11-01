@@ -170,3 +170,5 @@ pub use structs::filter::FilterExpr;
 pub use structs::querybuilder::QueryCore;
 pub use structs::querybuilder::SsqlMarker;
 pub use structs::stream::RowStream;
+
+pub use structs::query_builder_fn::QueryBuilderI;

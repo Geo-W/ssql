@@ -4,6 +4,7 @@ mod tests {
     use chrono::NaiveDateTime;
     use futures_lite::StreamExt;
     use serde::{Deserialize, Serialize};
+    use ssql::QueryBuilderI;
     use tiberius::Client;
     use tokio::net::TcpStream;
     use tokio_util::compat::Compat;
@@ -22,6 +23,20 @@ mod tests {
         c.get_struct_2::<Customerlist, SlowMoving>(&mut client)
             .await
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn q_fn() {
+        let mut client = get_client().await;
+        let mut query = Customerlist::query();
+        let a = QueryBuilderI {
+            a: query,
+            func: |x| 5i32,
+        }
+        .replace_fn(|x| "a".to_string())
+        .join::<SlowMoving>();
+        let b = a.all(&mut client).await.unwrap();
+        dbg!(&b);
     }
 
     #[tokio::test]
