@@ -66,11 +66,44 @@ where
     Tc: SsqlMarker,
     FN: Fn(&Row) -> Ret + 'static + Send + Sync,
 {
-    pub a: QueryCore<'a, Ta>,
-    pub tb: PhantomData<Tb>,
-    pub tc: PhantomData<Tc>,
-    pub func: FN,
+    a: QueryCore<'a, Ta>,
+    tb: PhantomData<Tb>,
+    tc: PhantomData<Tc>,
+    func: FN,
 }
+
+pub struct QueryBuilderIV<'a, FN, Ret, Ta, Tb, Tc, Td>
+where
+    Ta: SsqlMarker,
+    Tb: SsqlMarker,
+    Tc: SsqlMarker,
+    Td: SsqlMarker,
+    FN: Fn(&Row) -> Ret + 'static + Send + Sync,
+{
+    a: QueryCore<'a, Ta>,
+    tb: PhantomData<Tb>,
+    tc: PhantomData<Tc>,
+    td: PhantomData<Td>,
+    func: FN,
+}
+
+pub struct QueryBuilderV<'a, FN, Ret, Ta, Tb, Tc, Td, Te>
+where
+    Ta: SsqlMarker,
+    Tb: SsqlMarker,
+    Tc: SsqlMarker,
+    Td: SsqlMarker,
+    Te: SsqlMarker,
+    FN: Fn(&Row) -> Ret + 'static + Send + Sync,
+{
+    a: QueryCore<'a, Ta>,
+    tb: PhantomData<Tb>,
+    tc: PhantomData<Tc>,
+    td: PhantomData<Td>,
+    te: PhantomData<Te>,
+    func: FN,
+}
+
 impl<'a, Ta> QueryCore<'a, Ta, NormalQuery>
 where
     Ta: SsqlMarker + Send + Sync,
@@ -141,7 +174,7 @@ where
     where
         NewFN: Fn(&Row) -> NewRet + 'static + Send + Sync,
     {
-        QueryBuilderI {
+        Self::NewFnModel {
             a: self.a,
             func: new_fn,
         }
@@ -158,7 +191,7 @@ where
     Ret: Send + Sync,
 {
     type NxtModel<NxtType: SsqlMarker> = QueryBuilderIII<'a, FN, Ret, Ta, Tb, NxtType>;
-    type NewFnModel<NewFN, NewRet> = ()
+    type NewFnModel<NewFN, NewRet> = QueryBuilderII<'a, NewFN, NewRet, Ta, Tb>
     where
         NewFN: Fn(&Row) -> NewRet + 'static + Send + Sync;
     type Ret = SsqlResult<Vec<(Ret, Ret)>>;
@@ -193,9 +226,25 @@ where
     where
         NewFN: Fn(&Row) -> NewRet + 'static + Send + Sync,
     {
-        todo!()
+        Self::NewFnModel {
+            a: self.a,
+            tb: self.tb,
+            func: new_fn,
+        }
     }
 }
+
+impl_queryable!(
+    QueryBuilderIII,
+    QueryBuilderIV,
+    [Ta, Tb, Tc],
+    [Ret, Ret, Ret],
+    [td, tc, tb],
+    [func, func, func]
+);
+
+
+
 //
 // impl<'a, FN, Ret, Ta> QueryBuilderI<'a, FN, Ret, Ta>
 // where
