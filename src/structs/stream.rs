@@ -9,12 +9,12 @@ pub use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 use crate::SsqlMarker;
 
 /// stream
-pub struct RowStream<'a, T: SsqlMarker> {
+pub struct RowStream<'a, T> {
     query_stream: QueryStream<'a>,
     func: Box<dyn for<'b> Fn(&'b Row) -> T + Send>,
 }
 
-impl<'a, T: SsqlMarker> RowStream<'a, T> {
+impl<'a, T> RowStream<'a, T> {
     pub(crate) fn new<F>(stream: QueryStream<'a>, func: F) -> Self
     where
         F: 'static + for<'b> Fn(&'b Row) -> T + Send,
@@ -26,7 +26,7 @@ impl<'a, T: SsqlMarker> RowStream<'a, T> {
     }
 }
 
-impl<'a, T: SsqlMarker + Unpin> Stream for RowStream<'a, T> {
+impl<'a, T: Unpin> Stream for RowStream<'a, T> {
     type Item = T;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {

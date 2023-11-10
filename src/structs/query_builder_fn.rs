@@ -1,26 +1,75 @@
-use crate::structs::querybuilder::{Executable, NormalQuery};
-use crate::structs::JoinArg;
-use crate::{ColExpr, FilterExpr, QueryCore, SsqlMarker, SsqlResult};
+use std::marker::PhantomData;
+
 use async_trait::async_trait;
 use futures_lite::StreamExt;
-use serde_json::{Map, Value};
-use std::marker::PhantomData;
-use tiberius::{Client, Query, QueryItem, Row};
 use tokio::net::TcpStream;
 use tokio_util::compat::Compat;
 
+use crate::{ColExpr, FilterExpr, QueryCore, RowStream, SsqlMarker, SsqlResult};
+use crate::structs::into_result::IntoResult;
+use crate::structs::JoinArg;
+use crate::structs::querybuilder::Executable;
+
 pub trait CoreVisitor<'a> {
-    fn core(&mut self) -> &mut QueryCore<'a>;
-    // fn func<Ret>(&self) -> &dyn Fn(&Row) -> Ret + Send + Sync;
+    fn core_mut(&mut self) -> &mut QueryCore<'a>;
+    fn core_ref(&self) -> &QueryCore<'a>;
 }
 
 #[async_trait]
-pub trait QueryAble<'a>: Send + Sync + CoreVisitor<'a> {
+pub trait QueryAble<'a>: Send + Sync + CoreVisitor<'a>
+where
+    Self::Ret: IntoResult + Send + Sync + 'static,
+{
     #[doc(hidden)]
     type NxtModel<NxtType: SsqlMarker>;
     #[doc(hidden)]
     type Ret;
-    #[doc(hidden)]
+
+    async fn all(
+        &self,
+        conn: &mut tiberius::Client<Compat<TcpStream>>,
+    ) -> SsqlResult<Vec<Self::Ret>>
+    {
+        let mut stream = self.core_ref().execute(conn).await?.into_row_stream();
+        let mut ret = vec![];
+        // self.core_ref().exec(conn, Self::Ret::processing).await
+        while let Some(row) = stream.try_next().await?{
+            ret.push(Self::Ret::processing(&row));
+        }
+        Ok(ret)
+    }
+
+    async fn stream<'b>(&self, conn: &'b mut tiberius::Client<Compat<TcpStream>>)
+     -> SsqlResult<RowStream<'b, Self::Ret>>
+    {
+        let stream = self.core_ref().execute(conn).await?;
+        Ok(RowStream::new(stream, Self::Ret::processing))
+    }
+
+    /// Perform left join on another table.
+    /// Will panic if the relationship not presented in field attribute `#[ssql(foreign_key=...)]`
+    /// or if the provided table is already joined.
+    /// ```no_run
+    /// # use ssql::prelude::*;
+    /// #[derive(ORM)]
+    /// #[ssql(table = person, schema = SCHEMA1)]
+    /// struct Person {
+    ///     #[ssql(primary_key)]
+    ///     id: i32,
+    ///     email: Option<String>,
+    /// }
+    ///
+    /// #[derive(ORM)]
+    /// #[ssql(table = posts)]
+    /// struct Posts {
+    ///     id: i32,
+    ///     post: String,
+    ///     #[ssql(foreign_key = "SCHEMA1.Person.id")]
+    ///     person_id: i32,
+    /// }
+    /// let _ = Person::query().left_join::<Posts>();
+    /// ```
+    /// SQL: `... FROM SCHEMA1.person LEFT JOIN posts ON SCHEMA1.Person.id = posts.person_id`
     fn join<NxtType>(self, join_args: JoinArg) -> Self::NxtModel<NxtType>
     where
         NxtType: SsqlMarker;
@@ -56,29 +105,30 @@ pub trait QueryAble<'a>: Send + Sync + CoreVisitor<'a> {
     {
         self.join::<NxtType>(JoinArg::Outer)
     }
-    async fn all(&self, conn: &mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<Vec<Self::Ret>>;
 
     fn filter(mut self, filter_expr: FilterExpr<'a>) -> SsqlResult<Self>
     where
         Self: Sized,
     {
-        self.core().filter(filter_expr)?;
+        self.core_mut().filter(filter_expr)?;
         Ok(self)
     }
 
+    /// Ordering the output by a specified column in ascending order.
     fn order_by_asc(mut self, col_expr: ColExpr) -> SsqlResult<Self>
     where
         Self: Sized,
     {
-        self.core().order_by_asc(col_expr)?;
+        self.core_mut().order_by(col_expr, true)?;
         Ok(self)
     }
 
+    /// Ordering the output by a specified column in descending order.
     fn order_by_desc(mut self, col_expr: ColExpr) -> SsqlResult<Self>
     where
         Self: Sized,
     {
-        self.core().order_by_desc(col_expr)?;
+        self.core_mut().order_by(col_expr, false)?;
         Ok(self)
     }
 }
@@ -143,39 +193,10 @@ where
     te: PhantomData<Te>,
 }
 
-impl<'a> QueryCore<'a, NormalQuery>
-where
-    // Ta: SsqlMarker + Send + Sync,
-    QueryCore<'a, NormalQuery>: Send + Executable,
-{
-    async fn exec<F, Ret>(
-        &self,
-        conn: &mut Client<Compat<TcpStream>>,
-        func: F,
-    ) -> SsqlResult<(Vec<Ret>)>
-    where
-        F: Fn(&tiberius::Row) -> Ret + Send + Sync,
-        Ret: Send + Sync,
-    {
-        let mut stream = self.execute(conn).await?;
-
-        let mut vec = vec![];
-
-        while let Some(item) = stream.try_next().await.unwrap() {
-            match item {
-                QueryItem::Row(row) => vec.push(func(&row)),
-                QueryItem::Metadata(_) => {}
-            }
-        }
-
-        Ok(vec)
-    }
-}
-
 #[async_trait]
 impl<'a, Ta> QueryAble<'a> for QueryBuilderI<'a, Ta>
 where
-    Ta: SsqlMarker + Send + Sync,
+    Ta: SsqlMarker + Send + Sync + 'static,
     // QueryCore<'a, Ta, NormalQuery>: Send + Executable,
 {
     type NxtModel<NxtType: SsqlMarker> = QueryBuilderII<'a, Ta, NxtType>;
@@ -187,23 +208,19 @@ where
         NxtType: SsqlMarker,
     {
         QueryBuilderII {
-            core: self.core.left_join::<NxtType>(),
+            core: self.core.join::<NxtType>(join_args),
             ta: Default::default(),
             tb: Default::default(),
         }
     }
 
-    async fn all(&self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<Vec<Self::Ret>> {
-        self.core.exec(conn, Ta::row_to_struct).await
-    }
 }
 
 #[async_trait]
 impl<'a, Ta, Tb> QueryAble<'a> for QueryBuilderII<'a, Ta, Tb>
 where
-    Ta: SsqlMarker + Send + Sync,
-    Tb: SsqlMarker + Send + Sync,
-    // QueryCore<'a, Ta, NormalQuery>: Send + Executable,
+    Ta: SsqlMarker + Send + Sync + 'static,
+    Tb: SsqlMarker + Send + Sync + 'static,
 {
     type NxtModel<NxtType: SsqlMarker> = QueryBuilderII<'a, Ta, NxtType>;
 
@@ -220,12 +237,6 @@ where
         //     tb: Default::default(),
         //     tc: Default::default(),
         // }
-    }
-
-    async fn all(&self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<Vec<Self::Ret>> {
-        self.core
-            .exec(conn, |x| (Ta::row_to_struct(x), Tb::row_to_struct(x)))
-            .await
     }
 }
 
@@ -315,8 +326,12 @@ impl<'a, Ta> CoreVisitor<'a> for QueryBuilderI<'a, Ta>
 where
     Ta: SsqlMarker,
 {
-    fn core(&mut self) -> &mut QueryCore<'a> {
+    fn core_mut(&mut self) -> &mut QueryCore<'a> {
         &mut self.core
+    }
+
+    fn core_ref(&self) -> &QueryCore<'a> {
+        &self.core
     }
 }
 
@@ -325,7 +340,11 @@ where
     Ta: SsqlMarker,
     Tb: SsqlMarker,
 {
-    fn core(&mut self) -> &mut QueryCore<'a> {
+    fn core_mut(&mut self) -> &mut QueryCore<'a> {
         &mut self.core
+    }
+
+    fn core_ref(&self) -> &QueryCore<'a> {
+        &self.core
     }
 }

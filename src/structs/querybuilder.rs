@@ -12,6 +12,7 @@ use tokio_util::compat::Compat;
 
 use crate::error::custom_error::SsqlResult;
 use crate::structs::filter::{ColExpr, FilterExpr};
+use crate::structs::JoinArg;
 use crate::structs::stream::RowStream;
 
 pub struct RawQuery;
@@ -111,17 +112,17 @@ where
     // T: SsqlMarker + 'static,
     QueryCore<'a,  Stage>: Executable,
 {
-    // pub async fn stream<F>(
-    //     &mut self,
-    //     conn: &'a mut tiberius::Client<Compat<TcpStream>>,
-    //     func: F,
-    // ) -> SsqlResult<RowStream<'a, T>>
-    // where
-    //     F: 'static + for<'b> Fn(&'b tiberius::Row) -> T + Send,
-    // {
-    //     let query_stream = self.execute(conn).await?;
-    //     Ok(RowStream::new(query_stream, func))
-    // }
+    pub async fn stream<F, Ret>(
+        &mut self,
+        conn: &'a mut tiberius::Client<Compat<TcpStream>>,
+        func: F,
+    ) -> SsqlResult<RowStream<'a, Ret>>
+    where
+        F: 'static + for<'b> Fn(&'b tiberius::Row) -> Ret + Send,
+    {
+        let query_stream = self.execute(conn).await?;
+        Ok(RowStream::new(query_stream, func))
+    }
     //
     // /// Get a streaming that producing Self struct.
     // pub async fn get_stream(
@@ -137,7 +138,7 @@ where
     // impl_get_data!(get_serialized_4, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value]);
     // impl_get_data!(get_serialized_5, row_to_json, [A, ret1, Value, B, ret2, Value, C, ret3, Value, D, ret4, Value, E, ret5, Value]);
     //
-    // impl_get_data!(get_struct, row_to_struct, [A, ret1, A]);
+    impl_get_data!(get_struct, row_to_struct, [A, ret1, A]);
     // impl_get_data!(get_struct_2, row_to_struct, [A, ret1, A, B, ret2, B]);
     // impl_get_data!(get_struct_3, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C]);
     // impl_get_data!(get_struct_4, row_to_struct, [A, ret1, A, B, ret2, B, C, ret3, C, D, ret4, D]);
@@ -194,19 +195,7 @@ where
         }
     }
 
-    /// Ordering the output by a specified column in ascending order.
-    pub fn order_by_asc(&mut self, column: ColExpr) -> SsqlResult<()> {
-        self.order_by(column, true)?;
-        Ok(())
-    }
-
-    /// Ordering the output by a specified column in descending order.
-    pub fn order_by_desc(&mut self, column: ColExpr) -> SsqlResult<()> {
-        self.order_by(column, false)?;
-        Ok(())
-    }
-
-    fn order_by(&mut self, column: ColExpr, order_asc: bool) -> SsqlResult<()> {
+    pub(crate) fn order_by(&mut self, column: ColExpr, order_asc: bool) -> SsqlResult<()> {
         match self.tables.contains(column.table) {
             true => {
                 if !self.order.is_empty() {
@@ -223,10 +212,16 @@ where
         }
     }
 
-    fn join<B>(mut self, join_type: &str) -> Self
+    pub(crate) fn join<B>(mut self, join_args: JoinArg) -> Self
     where
         B: SsqlMarker,
     {
+        let join_type = match join_args {
+            JoinArg::Left => "LEFT",
+            JoinArg::Right => "RIGHT",
+            JoinArg::Outer => "OUTER",
+            JoinArg::Inner => "INNER"
+        };
         let name = B::table_name();
         let fields = B::fields();
         let relation = self.find_relation(&name);
@@ -239,130 +234,6 @@ where
             }
         }
         self
-    }
-
-    /// Perform left join on another table.
-    /// Will panic if the relationship not presented in field attribute `#[ssql(foreign_key=...)]`
-    /// or if the provided table is already joined.
-    /// ```no_run
-    /// # use ssql::prelude::*;
-    /// #[derive(ORM)]
-    /// #[ssql(table = person, schema = SCHEMA1)]
-    /// struct Person {
-    ///     #[ssql(primary_key)]
-    ///     id: i32,
-    ///     email: Option<String>,
-    /// }
-    ///
-    /// #[derive(ORM)]
-    /// #[ssql(table = posts)]
-    /// struct Posts {
-    ///     id: i32,
-    ///     post: String,
-    ///     #[ssql(foreign_key = "SCHEMA1.Person.id")]
-    ///     person_id: i32,
-    /// }
-    /// let _ = Person::query().left_join::<Posts>();
-    /// ```
-    /// SQL: `... FROM SCHEMA1.person LEFT JOIN posts ON SCHEMA1.Person.id = posts.person_id`
-    pub fn left_join<B>(self) -> Self
-    where
-        B: SsqlMarker,
-    {
-        self.join::<B>("LEFT")
-    }
-
-    /// Perform right join on another table.
-    /// Will panic if the relationship not presented in field attribute `#[ssql(foreign_key=...)]`
-    /// or if the provided table is already joined.
-    /// ```no_run
-    /// # use ssql::prelude::*;
-    /// #[derive(ORM)]
-    /// #[ssql(table = person, schema = SCHEMA1)]
-    /// struct Person {
-    ///     #[ssql(primary_key)]
-    ///     id: i32,
-    ///     email: Option<String>,
-    /// }
-    ///
-    /// #[derive(ORM)]
-    /// #[ssql(table = posts)]
-    /// struct Posts {
-    ///     id: i32,
-    ///     post: String,
-    ///     #[ssql(foreign_key = "SCHEMA1.Person.id")]
-    ///     person_id: i32,
-    /// }
-    /// let _ = Person::query().right_join::<Posts>();
-    /// ```
-    /// SQL: `... FROM SCHEMA1.person RIGHT JOIN posts ON SCHEMA1.Person.id = posts.person_id`
-    pub fn right_join<B>(self) -> Self
-    where
-        B: SsqlMarker,
-    {
-        self.join::<B>("RIGHT")
-    }
-
-    /// Perform inner join on another table.
-    /// Will panic if the relationship not presented in field attribute `#[ssql(foreign_key=...)]`
-    /// or if the provided table is already joined.
-    /// ```no_run
-    /// # use ssql::prelude::*;
-    /// #[derive(ORM)]
-    /// #[ssql(table = person, schema = SCHEMA1)]
-    /// struct Person {
-    ///     #[ssql(primary_key)]
-    ///     id: i32,
-    ///     email: Option<String>,
-    /// }
-    ///
-    /// #[derive(ORM)]
-    /// #[ssql(table = posts)]
-    /// struct Posts {
-    ///     id: i32,
-    ///     post: String,
-    ///     #[ssql(foreign_key = "SCHEMA1.Person.id")]
-    ///     person_id: i32,
-    /// }
-    /// let _ = Person::query().inner_join::<Posts>();
-    /// ```
-    /// SQL: `... FROM SCHEMA1.person INNER JOIN posts ON SCHEMA1.Person.id = posts.person_id`
-    pub fn inner_join<B>(self) -> Self
-    where
-        B: SsqlMarker,
-    {
-        self.join::<B>("INNER")
-    }
-
-    /// Perform left join on another table.
-    /// Will panic if the relationship not presented in field attribute `#[ssql(foreign_key=...)]`
-    /// or if the provided table is already joined.
-    /// ```no_run
-    /// # use ssql::prelude::*;
-    /// #[derive(ORM)]
-    /// #[ssql(table = person, schema = SCHEMA1)]
-    /// struct Person {
-    ///     #[ssql(primary_key)]
-    ///     id: i32,
-    ///     email: Option<String>,
-    /// }
-    ///
-    /// #[derive(ORM)]
-    /// #[ssql(table = posts)]
-    /// struct Posts {
-    ///     id: i32,
-    ///     post: String,
-    ///     #[ssql(foreign_key = "SCHEMA1.Person.id")]
-    ///     person_id: i32,
-    /// }
-    /// let _ = Person::query().outer_join::<Posts>();
-    /// ```
-    /// SQL: `... FROM SCHEMA1.person OUTER JOIN posts ON SCHEMA1.Person.id = posts.person_id`
-    pub fn outer_join<B>(self) -> Self
-    where
-        B: SsqlMarker,
-    {
-        self.join::<B>("OUTER")
     }
 
     fn find_relation(&self, table: &str) -> &'static str {
@@ -424,28 +295,28 @@ pub trait SsqlMarker {
     ///  // make sure all fields in the struct are present in the query.
     ///  let query = PersonRaw::raw_query("SELECT id, email, dt FROM Person WHERE id = @p1", &[&1]);
     /// ```
-    // fn raw_query<'a>(sql: &str, params: &[&'a dyn ToSql]) -> QueryCore<'a, Self, RawQuery>
-    // where
-    //     Self: Sized,
-    // {
-    //     let mut q = QueryCore {
-    //         fields: Default::default(),
-    //         filters: vec![],
-    //         join: "".to_string(),
-    //         tables: Default::default(),
-    //         order: "".to_string(),
-    //         raw_sql: Some(sql.to_string()),
-    //         relation_func: |_| "",
-    //         query_params: vec![],
-    //         query_idx_counter: 0,
-    //         _marker: None,
-    //         _mark2: Default::default(),
-    //     };
-    //     for p in params {
-    //         q.query_params.push(*p);
-    //     }
-    //     q
-    // }
+    fn raw_query<'a>(sql: &str, params: &[&'a dyn ToSql]) -> QueryCore<'a, RawQuery>
+    where
+        Self: Sized,
+    {
+        let mut q = QueryCore {
+            main_table: "",
+            fields: Default::default(),
+            filters: vec![],
+            join: "".to_string(),
+            tables: Default::default(),
+            order: "".to_string(),
+            raw_sql: Some(sql.to_string()),
+            relation_func: |_| "",
+            query_params: vec![],
+            query_idx_counter: 0,
+            _mark2: Default::default(),
+        };
+        for p in params {
+            q.query_params.push(*p);
+        }
+        q
+    }
 
     /// Bulk insert, takes everything that can be turned into iterator that generate specific structs.
     /// ```no_run
