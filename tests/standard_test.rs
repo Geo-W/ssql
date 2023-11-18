@@ -12,37 +12,23 @@ mod tests {
     use ssql::prelude::*;
 
     #[tokio::test]
-    async fn test() {
-        let mut client = get_client().await;
-        let mut query = Customerlist::query();
-        let a = query.get_struct::<Customerlist>(&mut client).await;
-        dbg!(a.unwrap());
-        let b = query.get_serialized::<Customerlist>(&mut client).await;
-        dbg!(b.unwrap());
-        let mut c = query.left_join::<SlowMoving>();
-        c.get_struct_2::<Customerlist, SlowMoving>(&mut client)
-            .await
-            .unwrap();
-    }
+    async fn test() -> SsqlResult<()> {
+        let mut conn = get_client().await;
+        let query = Customerlist::query();
+        let r1 = query.all(&mut conn).await?;
+        let r2 = query.json(&mut conn).await?;
 
-    #[tokio::test]
-    async fn q_fn() {
-        let mut client = get_client().await;
-        let mut query = Customerlist::query();
-        let a = QueryBuilderI {
-            a: query,
-            func: |x| 5i32,
-        }
-        .replace_fn(|x| "a".to_string())
-        .join::<SlowMoving>();
-        let b = a.all(&mut client).await.unwrap();
-        dbg!(&b);
+        let query = query.left_join::<SlowMoving>();
+        let r3 = query.all(&mut conn).await?;
+        let r4 = query.all(&mut conn).await?;
+        assert!(r1.len() == r2.len() && r2.len() == r3.len() && r3.len() == r4.len());
+        Ok(())
     }
 
     #[tokio::test]
     async fn stream() {
         let mut client = get_client().await;
-        let mut stream = Customerlist::query().get_stream(&mut client).await.unwrap();
+        let mut stream = Customerlist::query().stream(&mut client).await.unwrap();
         while let Some(v) = stream.next().await {
             dbg!(&v);
         }
@@ -51,13 +37,12 @@ mod tests {
     #[tokio::test]
     async fn filter() -> SsqlResult<()> {
         let mut client = get_client().await;
-        let mut query =
+        let query =
             Customerlist::query().filter(Customerlist::col("ship_to_id")?.contains(&"9706"))?;
         // .filter(
         //     Customerlist::col("volume")?.eq(&666)
         // )?;
-        let a = query.get_struct::<Customerlist>(&mut client).await?;
-        dbg!(a);
+        let a = query.all(&mut client).await?;
         Ok(())
     }
 

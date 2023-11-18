@@ -257,8 +257,8 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
                 }
             }
 
-            fn query<'a>() -> QueryCore<'a> {
-                QueryCore::new(
+            fn query<'a>() -> ssql::QueryBuilderI<'a, Self> {
+                QueryBuilderI::new(
                     (#table_name, #struct_name::fields()),
                     #struct_name::relationship)
             }

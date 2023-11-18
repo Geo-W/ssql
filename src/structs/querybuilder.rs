@@ -11,6 +11,7 @@ use tokio::net::TcpStream;
 use tokio_util::compat::Compat;
 
 use crate::error::custom_error::SsqlResult;
+use crate::QueryBuilderI;
 use crate::structs::filter::{ColExpr, FilterExpr};
 use crate::structs::JoinArg;
 use crate::structs::stream::RowStream;
@@ -274,7 +275,7 @@ pub trait SsqlMarker {
         Self: Sized;
 
     /// Generate a query builder for the struct.
-    fn query<'a>() -> QueryCore<'a>
+    fn query<'a>() -> QueryBuilderI<'a, Self>
     where
         Self: Sized;
 
