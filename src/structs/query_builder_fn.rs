@@ -28,22 +28,44 @@ where
     async fn all(
         &self,
         conn: &mut tiberius::Client<Compat<TcpStream>>,
-    ) -> SsqlResult<Vec<Self::Ret>>
-    {
+    ) -> SsqlResult<Vec<Self::Ret>> {
         let mut stream = self.core_ref().execute(conn).await?.into_row_stream();
         let mut ret = vec![];
-        // self.core_ref().exec(conn, Self::Ret::processing).await
-        while let Some(row) = stream.try_next().await?{
-            ret.push(Self::Ret::processing(&row));
+        while let Some(row) = stream.try_next().await? {
+            ret.push(Self::Ret::to_struct(&row));
         }
         Ok(ret)
     }
 
-    async fn stream<'b>(&self, conn: &'b mut tiberius::Client<Compat<TcpStream>>)
-     -> SsqlResult<RowStream<'b, Self::Ret>>
-    {
+    async fn stream<'b>(
+        &self,
+        conn: &'b mut tiberius::Client<Compat<TcpStream>>,
+    ) -> SsqlResult<RowStream<'b, Self::Ret>> {
         let stream = self.core_ref().execute(conn).await?;
-        Ok(RowStream::new(stream, Self::Ret::processing))
+        Ok(RowStream::new(stream, Self::Ret::to_struct))
+    }
+
+    async fn one(
+        &self,
+        conn: &mut tiberius::Client<Compat<TcpStream>>,
+    ) -> SsqlResult<Option<Self::Ret>> {
+        let row = self.core_ref().execute(conn).await?.into_row().await?;
+        match row {
+            None => Ok(None),
+            Some(row) => Ok(Some(Self::Ret::to_struct(&row))),
+        }
+    }
+
+    async fn json(
+        &self,
+        conn: &mut tiberius::Client<Compat<TcpStream>>,
+    ) -> SsqlResult<Vec<<<Self as QueryAble<'a>>::Ret as IntoResult>::Js>> {
+        let mut stream = self.core_ref().execute(conn).await?.into_row_stream();
+        let mut ret = vec![];
+        while let Some(row) = stream.try_next().await? {
+            ret.push(Self::Ret::to_json(&row))
+        }
+        Ok(ret)
     }
 
     /// Perform left join on another table.
@@ -213,7 +235,6 @@ where
             tb: Default::default(),
         }
     }
-
 }
 
 #[async_trait]
