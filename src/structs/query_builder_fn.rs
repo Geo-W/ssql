@@ -15,6 +15,7 @@ pub trait CoreVisitor<'a> {
     fn core_ref(&self) -> &QueryCore<'a>;
 }
 
+/// Core trait for constructing and conducting query.
 #[async_trait]
 pub trait QueryAble<'a>: Send + Sync + CoreVisitor<'a>
 where
@@ -89,13 +90,17 @@ where
     ///     #[ssql(foreign_key = "SCHEMA1.Person.id")]
     ///     person_id: i32,
     /// }
-    /// let _ = Person::query().left_join::<Posts>();
+    /// let _ = Person::query().join::<Posts>(ssql::JoinArg::Left);
+    /// let _ = Person::query().left_join::<Posts>(); //same as above
+    /// //SQL: `... FROM SCHEMA1.person LEFT JOIN posts ON SCHEMA1.Person.id = posts.person_id`
     /// ```
-    /// SQL: `... FROM SCHEMA1.person LEFT JOIN posts ON SCHEMA1.Person.id = posts.person_id`
     fn join<NxtType>(self, join_args: JoinArg) -> Self::NxtModel<NxtType>
     where
         NxtType: SsqlMarker;
 
+    /// See [`join`]. Except that this method only perform `LEFT JOIN`.
+    ///
+    /// [`join`]: trait.QueryAble.html#tymethod.join
     fn left_join<NxtType>(self) -> Self::NxtModel<NxtType>
     where
         NxtType: SsqlMarker,
@@ -104,6 +109,9 @@ where
         self.join::<NxtType>(JoinArg::Left)
     }
 
+    /// See [`join`]. Except that this method only perform `RIGHT JOIN`.
+    ///
+    /// [`join`]: trait.QueryAble.html#tymethod.join
     fn right_join<NxtType>(self) -> Self::NxtModel<NxtType>
     where
         NxtType: SsqlMarker,
@@ -112,6 +120,9 @@ where
         self.join::<NxtType>(JoinArg::Right)
     }
 
+    /// See [`join`]. Except that this method only perform `INNER JOIN`.
+    ///
+    /// [`join`]: trait.QueryAble.html#tymethod.join
     fn inner_join<NxtType>(self) -> Self::NxtModel<NxtType>
     where
         NxtType: SsqlMarker,
@@ -120,6 +131,9 @@ where
         self.join::<NxtType>(JoinArg::Inner)
     }
 
+    /// See [`join`]. Except that this method only perform `OUTER JOIN`.
+    ///
+    /// [`join`]: trait.QueryAble.html#tymethod.join
     fn outer_join<NxtType>(self) -> Self::NxtModel<NxtType>
     where
         NxtType: SsqlMarker,
@@ -128,6 +142,8 @@ where
         self.join::<NxtType>(JoinArg::Outer)
     }
 
+    /// Chain a filter to current builder.
+    /// This method will check whether the table provided is in this builder thus [`SsqlResult`] is returned.
     fn filter(mut self, filter_expr: FilterExpr<'a>) -> SsqlResult<Self>
     where
         Self: Sized,
@@ -159,8 +175,8 @@ pub struct QueryBuilderI<'a, Ta>
 where
     Ta: SsqlMarker,
 {
-    pub core: QueryCore<'a>,
-    pub ta: PhantomData<Ta>,
+    core: QueryCore<'a>,
+    ta: PhantomData<Ta>,
 }
 
 pub struct QueryBuilderII<'a, Ta, Tb>

@@ -165,10 +165,12 @@ pub mod utils;
 pub use error::custom_error::SsqlError;
 pub use error::custom_error::SsqlResult;
 
+pub use structs::JoinArg;
 pub use structs::filter::ColExpr;
 pub use structs::filter::FilterExpr;
 pub use structs::querybuilder::QueryCore;
 pub use structs::querybuilder::SsqlMarker;
+pub use structs::query_builder_fn::QueryAble;
 pub use structs::stream::RowStream;
 
 pub use structs::query_builder_fn::QueryBuilderI;

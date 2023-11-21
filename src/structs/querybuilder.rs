@@ -182,8 +182,6 @@ where
         }
     }
 
-    /// Chain a filter to current builder.
-    /// This method will check whether the table provided is in this builder thus [`SsqlResult`] is returned.
     pub fn filter(&mut self, filter_expr: FilterExpr<'a>) -> SsqlResult<()> {
         // self.query_params.push(filter_expr.conditions);
         match self.tables.contains(filter_expr.col.table) {
