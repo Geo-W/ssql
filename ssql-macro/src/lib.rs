@@ -56,7 +56,7 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
             }
             "NaiveDateTime" => {
                 quote! {
-                    map.insert(#mn.to_string(), row.get::<#ty, &str>(#field_name).unwrap().to_string().into())
+                    map.insert(#mn.to_string(), row.get::<#ty, &str>(#field_name).and_then(|x| x.to_string().into()).into())
                 }
             }
             _ => {
