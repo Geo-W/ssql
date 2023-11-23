@@ -1,12 +1,14 @@
 use async_trait::async_trait;
-use serde_json::{Map, Value};
-use tiberius::{Client, ToSql};
-use tokio_util::compat::Compat;
-use tokio::net::TcpStream;
-use crate::{ColExpr, QueryBuilderI, SsqlResult};
 #[cfg(feature = "polars")]
 use polars::prelude::*;
-use crate::structs::query_core::{QueryCore, RawQuery};
+use serde_json::{Map, Value};
+use tiberius::{Client, ToSql};
+use tokio::net::TcpStream;
+use tokio_util::compat::Compat;
+
+use crate::{ColExpr, QueryBuilderI, SsqlResult};
+use crate::structs::query_core::QueryCore;
+use crate::structs::raw_query_builder::RawQueryBuilder;
 
 /// a trait automatically derived via `#[derive(ORM)]` macro, all these methods are available.
 #[async_trait]
@@ -50,7 +52,7 @@ pub trait SsqlMarker {
     ///  // make sure all fields in the struct are present in the query.
     ///  let query = PersonRaw::raw_query("SELECT id, email, dt FROM Person WHERE id = @p1", &[&1]);
     /// ```
-    fn raw_query<'a>(sql: &str, params: &[&'a dyn ToSql]) -> QueryCore<'a, RawQuery>
+    fn raw_query<'a>(sql: &str, params: &[&'a dyn ToSql]) -> RawQueryBuilder<'a, Self>
     where
         Self: Sized,
     {
@@ -59,7 +61,7 @@ pub trait SsqlMarker {
         for p in params {
             q.query_params.push(*p);
         }
-        q
+        RawQueryBuilder{ core: q, t: Default::default() }
     }
 
     /// Bulk insert, takes everything that can be turned into iterator that generate specific structs.

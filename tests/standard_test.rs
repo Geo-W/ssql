@@ -42,7 +42,7 @@ mod tests {
         // .filter(
         //     Customerlist::col("volume")?.eq(&666)
         // )?;
-        let a = query.all(&mut client).await?;
+        assert!(query.all(&mut client).await.is_ok());
         Ok(())
     }
 
@@ -104,9 +104,13 @@ mod tests {
     #[tokio::test]
     async fn raw_query_and_chrono() {
         let mut conn = get_client().await;
-        let mut m = PersonRaw::raw_query("SELECT * FROM Person where id = @p1", &[&"1"]);
-        let m = m.get_struct::<PersonRaw>(&mut conn).await;
-        assert_eq!(m.is_ok(), true);
+        let m = PersonRaw::raw_query("SELECT * FROM Person where id = @p1", &[&"5"]);
+        assert!(m.one(&mut conn).await.is_ok());
+        assert!(m.all(&mut conn).await.is_ok());
+        let mut stream = m.stream(&mut conn).await.unwrap();
+        while let Some(v) = stream.next().await {
+            dbg!(&v);
+        }
     }
 
     #[test]
