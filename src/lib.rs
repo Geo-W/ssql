@@ -168,9 +168,12 @@ pub use error::custom_error::SsqlResult;
 pub use structs::JoinArg;
 pub use structs::filter::ColExpr;
 pub use structs::filter::FilterExpr;
-pub use structs::querybuilder::QueryCore;
-pub use structs::querybuilder::SsqlMarker;
-pub use structs::query_builder_fn::QueryAble;
+pub use structs::ssql_marker::SsqlMarker;
+pub use structs::query_builder::QueryAble;
 pub use structs::stream::RowStream;
 
-pub use structs::query_builder_fn::QueryBuilderI;
+pub use structs::query_builder::QueryBuilderI;
+pub use structs::query_builder::QueryBuilderII;
+pub use structs::query_builder::QueryBuilderIII;
+pub use structs::query_builder::QueryBuilderIV;
+pub use structs::query_builder::QueryBuilderV;

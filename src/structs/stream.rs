@@ -6,8 +6,6 @@ use futures_lite::StreamExt;
 use tiberius::{QueryItem, QueryStream, Row};
 pub use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
-use crate::SsqlMarker;
-
 /// stream
 pub struct RowStream<'a, T> {
     query_stream: QueryStream<'a>,

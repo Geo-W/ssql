@@ -5,10 +5,11 @@ use futures_lite::StreamExt;
 use tokio::net::TcpStream;
 use tokio_util::compat::Compat;
 
-use crate::{ColExpr, FilterExpr, QueryCore, RowStream, SsqlMarker, SsqlResult};
 use crate::structs::into_result::IntoResult;
+use crate::structs::query_core::{Executable, QueryCore};
+use crate::structs::ssql_marker::SsqlMarker;
 use crate::structs::JoinArg;
-use crate::structs::querybuilder::Executable;
+use crate::{ColExpr, FilterExpr, RowStream, SsqlResult};
 
 pub trait CoreVisitor<'a> {
     fn core_mut(&mut self) -> &mut QueryCore<'a>;
@@ -171,6 +172,7 @@ where
     }
 }
 
+/// Struct representing one `TABLE`.
 pub struct QueryBuilderI<'a, Ta>
 where
     Ta: SsqlMarker,
@@ -179,14 +181,27 @@ where
     ta: PhantomData<Ta>,
 }
 
+impl<'a, T> QueryBuilderI<'a, T>
+where
+    T: SsqlMarker,
+{
+    pub fn new(fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str) -> Self {
+        let core = QueryCore::new(fields, func);
+        Self {
+            core,
+            ta: Default::default(),
+        }
+    }
+}
+
 pub struct QueryBuilderII<'a, Ta, Tb>
 where
     Ta: SsqlMarker,
     Tb: SsqlMarker,
 {
-    pub core: QueryCore<'a>,
+    core: QueryCore<'a>,
     ta: PhantomData<Ta>,
-    pub tb: PhantomData<Tb>,
+    tb: PhantomData<Tb>,
 }
 
 pub struct QueryBuilderIII<'a, Ta, Tb, Tc>
@@ -195,7 +210,7 @@ where
     Tb: SsqlMarker,
     Tc: SsqlMarker,
 {
-    core: QueryCore<'a, Ta>,
+    core: QueryCore<'a>,
     ta: PhantomData<Ta>,
     tb: PhantomData<Tb>,
     tc: PhantomData<Tc>,
@@ -253,112 +268,31 @@ where
     }
 }
 
+impl_queryable!(QueryBuilderII, QueryBuilderIII, [Ta, Tb], [ta, tb, tc]);
+impl_queryable!(QueryBuilderIII, QueryBuilderIV, [Ta, Tb, Tc], [ta, tb, tc, td]);
+impl_queryable!(QueryBuilderIV, QueryBuilderV, [Ta, Tb, Tc, Td], [ta, tb, tc, td, te]);
+
 #[async_trait]
-impl<'a, Ta, Tb> QueryAble<'a> for QueryBuilderII<'a, Ta, Tb>
+impl<'a, Ta, Tb, Tc, Td, Te> QueryAble<'a> for QueryBuilderV<'a, Ta, Tb,Tc,Td,Te>
 where
     Ta: SsqlMarker + Send + Sync + 'static,
     Tb: SsqlMarker + Send + Sync + 'static,
+    Tc: SsqlMarker + Send + Sync + 'static,
+    Td: SsqlMarker + Send + Sync + 'static,
+    Te: SsqlMarker + Send + Sync + 'static,
 {
-    type NxtModel<NxtType: SsqlMarker> = QueryBuilderII<'a, Ta, NxtType>;
+    type NxtModel<NxtType: SsqlMarker> = PhantomData<NxtType>;
 
-    type Ret = (Ta, Tb);
+    type Ret = (Ta, Tb, Tc, Td, Te);
 
-    fn join<NxtType>(self, join_args: JoinArg) -> Self::NxtModel<NxtType>
+    fn join<NxtType>(self, _join_args: JoinArg) -> Self::NxtModel<NxtType>
     where
         NxtType: SsqlMarker,
     {
-        todo!()
-        // QueryBuilderIII {
-        //     core: self.core.left_join::<NxtType>(),
-        //     ta: Default::default(),
-        //     tb: Default::default(),
-        //     tc: Default::default(),
-        // }
+        unimplemented!()
     }
 }
 
-// #[async_trait]
-// impl<'a, FN, Ret, Ta, Tb> QueryAble<'a> for QueryBuilderII<'a, FN, Ret, Ta, Tb>
-// where
-//     Ta: SsqlMarker + Send + Sync,
-//     Tb: SsqlMarker + Send + Sync,
-//     FN: Fn(&Row) -> Ret + 'static + Send + Sync,
-//     // QueryCore<'a, Ta, NormalQuery>: Send + Executable,
-//     Ret: Send + Sync,
-// {
-//     type NxtModel<NxtType: SsqlMarker> = QueryBuilderIII<'a, FN, Ret, Ta, Tb, NxtType>;
-//     type NewFnModel<NewFN, NewRet> = QueryBuilderII<'a, NewFN, NewRet, Ta, Tb>
-//     where
-//         NewFN: Fn(&Row) -> NewRet + 'static + Send + Sync;
-//     type Ret = SsqlResult<Vec<(Ret, Ret)>>;
-//
-//     fn join<NxtType>(self) -> Self::NxtModel<NxtType>
-//     where
-//         NxtType: SsqlMarker,
-//     {
-//         QueryBuilderIII {
-//             a: self.a.left_join::<NxtType>(),
-//             tb: Default::default(),
-//             tc: Default::default(),
-//             func: self.func,
-//         }
-//     }
-//
-//     async fn all(&self, conn: &mut Client<Compat<TcpStream>>) -> Self::Ret {
-//         self.a
-//             .exec(conn, |x| ((&self.func)(x), (&self.func)(x)))
-//             .await
-//     }
-//
-//     fn filter(mut self, filter_expr: FilterExpr<'a>) -> SsqlResult<Self>
-//     where
-//         Self: Sized,
-//     {
-//         self.a = self.a.filter(filter_expr)?;
-//         Ok(self)
-//     }
-//
-//     fn replace_fn<NewFN, NewRet>(self, new_fn: NewFN) -> Self::NewFnModel<NewFN, NewRet>
-//     where
-//         NewFN: Fn(&Row) -> NewRet + 'static + Send + Sync,
-//     {
-//         Self::NewFnModel {
-//             a: self.a,
-//             tb: self.tb,
-//             func: new_fn,
-//         }
-//     }
-// }
-//
-// impl_queryable!(
-//     QueryBuilderIII,
-//     QueryBuilderIV,
-//     [Ta, Tb, Tc],
-//     [Ret, Ret, Ret],
-//     [td, tc, tb],
-//     [func, func, func]
-// );
-
-//
-// impl<'a, FN, Ret, Ta> QueryBuilderI<'a, FN, Ret, Ta>
-// where
-//     Ta: SsqlMarker,
-//     FN: Fn(&Row) -> Ret + 'static + Send + Sync,
-// {
-//     pub fn new(s: QueryCore<'a, Ta>, func: FN) -> Self {
-//         Self { a: s, func }
-//     }
-//
-//     pub fn replace_fn<NewRet, NewFN>(self, new_fn: NewFN) -> QueryBuilderI<'a, NewFN, NewRet, Ta>
-//     where
-//         NewFN: Fn(&Row) -> NewRet + 'static + Send + Sync,
-//     {
-//         QueryBuilderI {
-//             a: self.a,
-//             func: new_fn,
-//         }
-//     }
-// }
 impl<'a, Ta> CoreVisitor<'a> for QueryBuilderI<'a, Ta>
 where
     Ta: SsqlMarker,
@@ -371,17 +305,7 @@ where
         &self.core
     }
 }
-
-impl<'a, Ta, Tb> CoreVisitor<'a> for QueryBuilderII<'a, Ta, Tb>
-where
-    Ta: SsqlMarker,
-    Tb: SsqlMarker,
-{
-    fn core_mut(&mut self) -> &mut QueryCore<'a> {
-        &mut self.core
-    }
-
-    fn core_ref(&self) -> &QueryCore<'a> {
-        &self.core
-    }
-}
+impl_corevisitor!(QueryBuilderII, [Ta, Tb]);
+impl_corevisitor!(QueryBuilderIII, [Ta, Tb, Tc]);
+impl_corevisitor!(QueryBuilderIV, [Ta, Tb, Tc, Td]);
+impl_corevisitor!(QueryBuilderV, [Ta, Tb, Tc, Td, Te]);
