@@ -6,6 +6,8 @@ pub(crate) mod stream;
 pub(crate) mod ssql_marker;
 mod raw_query_builder;
 
+/// Represents different `JOIN` methods in sql.
+#[allow(missing_docs)]
 pub enum JoinArg {
     Left,
     Right,

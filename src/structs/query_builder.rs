@@ -27,6 +27,8 @@ where
     #[doc(hidden)]
     type Ret;
 
+    /// Getting data from query builder instance, will panic if data type defined in struct is not corresponding to the tables.
+    /// Returns Vector containing tuple of TABLE structs `Vec<(Ta..Te)>`, depends on how much tables joined in this query builder.
     async fn all(
         &self,
         conn: &mut tiberius::Client<Compat<TcpStream>>,
@@ -39,6 +41,9 @@ where
         Ok(ret)
     }
 
+    /// Similar to [`all`], but returns a stream producing tuple of structs instead of a whole vector.
+    ///
+    /// [`all`]: trait.QueryAble.html#method.all
     async fn stream<'b>(
         &self,
         conn: &'b mut tiberius::Client<Compat<TcpStream>>,
@@ -47,6 +52,9 @@ where
         Ok(RowStream::new(stream, Self::Ret::to_struct))
     }
 
+    /// Similar to [`all`], but returns first row only.
+    ///
+    /// [`all`]: trait.QueryAble.html#method.all
     async fn one(
         &self,
         conn: &mut tiberius::Client<Compat<TcpStream>>,
@@ -58,6 +66,10 @@ where
         }
     }
 
+    /// Similar to [`all`], but returns Vector containing tuple of [`Value`] instead of struct itself.
+    ///
+    /// [`all`]: trait.QueryAble.html#method.all
+    /// [`Value`]: serde_json::Value
     async fn json(
         &self,
         conn: &mut tiberius::Client<Compat<TcpStream>>,
@@ -185,6 +197,9 @@ impl<'a, T> QueryBuilderI<'a, T>
 where
     T: SsqlMarker,
 {
+    /// Create a new query builder, shouldn't call it manually, this is handled by [`query`] method.
+    ///
+    /// ['query`]: trait.SsqlMarker.html#tymethod.query
     pub fn new(fields: (&'static str, Vec<&'static str>), func: fn(&str) -> &'static str) -> Self {
         let core = QueryCore::new(fields, func);
         Self {
