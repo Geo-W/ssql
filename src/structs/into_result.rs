@@ -1,12 +1,15 @@
+use polars::frame::DataFrame;
 use crate::structs::ssql_marker::SsqlMarker;
 use serde_json::Value;
 use tiberius::Row;
+use crate::SsqlResult;
 
 pub trait IntoResult
 where
     Self::Js: Send + Sync,
 {
     type Js;
+    type Df;
     fn to_struct(r: &Row) -> Self
     where
         Self: Sized + 'static;
@@ -14,6 +17,8 @@ where
     fn to_json(r: &Row) -> Self::Js
     where
         Self: Sized;
+
+    fn df(v: Vec<Self>) -> SsqlResult<Self::Df> where Self: Sized;
 }
 
 impl<Ta> IntoResult for Ta
@@ -22,6 +27,7 @@ where
 {
     type Js = Value;
 
+    type Df = DataFrame;
     fn to_struct(r: &Row) -> Self
     where
         Self: Sized + 'static,
@@ -35,6 +41,10 @@ where
     {
         Ta::row_to_json(r).into()
     }
+
+    fn df(v: Vec<Self>) -> SsqlResult<Self::Df> where Self: Sized {
+        Ok(Ta::dataframe(v)?)
+    }
 }
 
 impl<Ta, Tb> IntoResult for (Ta, Tb)
@@ -43,6 +53,7 @@ where
     Tb: SsqlMarker,
 {
     type Js = (Value, Value);
+    type Df = ();
 
     fn to_struct(r: &Row) -> Self
     where
@@ -57,6 +68,10 @@ where
     {
         (Ta::row_to_json(r).into(), Tb::row_to_json(r).into())
     }
+
+    fn df(v: Vec<Self>) -> SsqlResult<Self::Df> where Self: Sized {
+        todo!()
+    }
 }
 
 impl<Ta, Tb, Tc> IntoResult for (Ta, Tb, Tc)
@@ -66,6 +81,7 @@ where
     Tc: SsqlMarker,
 {
     type Js = (Value, Value, Value);
+    type Df = ();
 
     fn to_struct(r: &Row) -> Self
     where
@@ -88,6 +104,10 @@ where
             Tc::row_to_json(r).into(),
         )
     }
+
+    fn df(v: Vec<Self>) -> SsqlResult<Self::Df> where Self: Sized {
+        todo!()
+    }
 }
 
 impl<Ta, Tb, Tc, Td> IntoResult for (Ta, Tb, Tc,Td)
@@ -98,6 +118,7 @@ where
     Td: SsqlMarker,
 {
     type Js = (Value, Value, Value, Value);
+    type Df = ();
 
     fn to_struct(r: &Row) -> Self
     where
@@ -122,6 +143,10 @@ where
             Td::row_to_json(r).into(),
         )
     }
+
+    fn df(v: Vec<Self>) -> SsqlResult<Self::Df> where Self: Sized {
+        todo!()
+    }
 }
 
 impl<Ta, Tb, Tc, Td, Te> IntoResult for (Ta, Tb, Tc,Td, Te)
@@ -133,6 +158,7 @@ where
     Te: SsqlMarker
 {
     type Js = (Value, Value, Value, Value, Value);
+    type Df = ();
 
     fn to_struct(r: &Row) -> Self
     where
@@ -158,5 +184,9 @@ where
             Td::row_to_json(r).into(),
             Te::row_to_json(r).into(),
         )
+    }
+
+    fn df(v: Vec<Self>) -> SsqlResult<Self::Df> where Self: Sized {
+        todo!()
     }
 }

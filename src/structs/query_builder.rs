@@ -82,6 +82,14 @@ where
         Ok(ret)
     }
 
+    async fn df(
+        &self,
+        conn: &mut tiberius::Client<Compat<TcpStream>>,
+    ) -> SsqlResult<<Self::Ret as IntoResult>::Df> {
+        let all = self.all(conn).await?;
+        Self::Ret::df(all)
+    }
+
     /// Perform left join on another table.
     /// Will panic if the relationship not presented in field attribute `#[ssql(foreign_key=...)]`
     /// or if the provided table is already joined.
