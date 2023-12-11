@@ -2,8 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-#[cfg(feature = "polars")]
-use polars::prelude::*;
 use tiberius::{QueryStream, ToSql};
 use tokio::net::TcpStream;
 use tokio_util::compat::Compat;

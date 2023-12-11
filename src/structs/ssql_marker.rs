@@ -30,6 +30,12 @@ pub trait SsqlMarker {
     where
         Self: Sized;
 
+    #[doc(hidden)]
+    #[cfg(feature = "polars")]
+    fn dataframe(vec: Vec<Self>) -> PolarsResult<DataFrame>
+    where
+        Self: Sized;
+
     /// Generate a query builder for the struct.
     fn query<'a>() -> QueryBuilderI<'a, Self>
     where
@@ -173,8 +179,10 @@ pub trait SsqlMarker {
     /// SQL: `UPDATE person SET email = 'a@gmail.com' WHERE id = 1`
     async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
 
+    #[doc(hidden)]
     fn relationship(input: &str) -> &'static str where Self: Sized;
 
+    #[doc(hidden)]
     fn primary_key(&self) -> (&'static str, &dyn ToSql);
     /// Generate a Column Expression that can be used in filtering and ordering.
     /// This method will failed if the given column name is no present in the struct.
@@ -193,16 +201,4 @@ pub trait SsqlMarker {
             false => Err(format!("column {} not found in {}", field, Self::table_name()).into()),
         }
     }
-}
-
-/// Trait that automatically derive with `#[derive(ORM)]` when `polars` feature is enabled.
-/// Supporting trait for [`get_dataframe`] method.
-///
-/// [`get_dataframe`]: struct.QueryBuilder.html#method.get_dataframe
-#[cfg(feature = "polars")]
-pub trait PolarsHelper {
-    #[doc(hidden)]
-    fn dataframe(vec: Vec<Self>) -> PolarsResult<DataFrame>
-    where
-        Self: Sized;
 }

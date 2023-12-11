@@ -13,6 +13,4 @@ pub use serde_json::{Map, Value};
 pub use async_trait::async_trait;
 
 #[cfg(feature = "polars")]
-pub use crate::structs::ssql_marker::PolarsHelper;
-#[cfg(feature = "polars")]
 pub use polars::prelude::*;

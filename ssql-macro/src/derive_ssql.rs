@@ -1,10 +1,10 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{DataStruct, Field, FieldsNamed, Ident};
-use syn::Data::Struct;
-use syn::Fields::Named;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
+use syn::Data::Struct;
+use syn::Fields::Named;
+use syn::{DataStruct, Field, FieldsNamed, Ident};
 
 use crate::utils::{extract_type_from_option, get_relations_and_tables_and_pk, parse_table_name};
 
@@ -156,7 +156,7 @@ impl DeriveSsql {
                 }
             };
         });
-        self.impl_fns.extend(quote!{
+        self.impl_fns.extend(quote! {
 
             fn row_to_json(row:&Row) -> Map<String, Value> {
                 let mut map = Map::new();
@@ -173,7 +173,7 @@ impl DeriveSsql {
             struct_ident,
             ..
         } = self;
-        self.impl_fns.extend(quote!{
+        self.impl_fns.extend(quote! {
 
             fn query<'a>() -> ssql::QueryBuilderI<'a, Self> {
                 QueryBuilderI::new(
@@ -286,7 +286,7 @@ impl DeriveSsql {
 
     pub(crate) fn impl_delete(&mut self) {
         let table_name = &self.table_name;
-        self.impl_fns.extend(quote!{
+        self.impl_fns.extend(quote! {
             async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()> {
                 let (pk, dt) = self.primary_key();
                 conn.execute(
@@ -368,7 +368,7 @@ impl DeriveSsql {
                     concat!(" ", #tb, " ON ", #rel)
                 }}
             });
-        self.impl_fns.extend(quote!{
+        self.impl_fns.extend(quote! {
 
             fn relationship(input: &str) -> &'static str {
                 match input {
@@ -380,16 +380,57 @@ impl DeriveSsql {
         })
     }
 
+    #[cfg(feature = "polars")]
+    pub(crate) fn impl_dataframe(&mut self) {
+        let fields = &self.fields;
+        let builder_new_vecs = fields.iter().map(|f| {
+            let field = f.clone().ident.unwrap();
+            let ty = &f.ty;
+            quote! {
+                let mut #field : Vec<#ty> = vec![]
+            }
+        });
 
+        let builder_insert_to_df = fields.iter().map(|f| {
+            let field = f.clone().ident.unwrap();
+            quote! {
+                #field.push(Phant_Name1.#field)
+            }
+        });
+
+        let builder_df = fields.iter().map(|f| {
+            let field = f.clone().ident.unwrap();
+            let mn = field.to_string();
+            quote! {
+                #mn => #field
+            }
+        });
+
+        self.impl_fns.extend(quote! {
+
+            fn dataframe(vec: Vec<Self>) -> PolarsResult<DataFrame> {
+                #(#builder_new_vecs;)*
+                #[allow(non_snake_case)]
+                for Phant_Name1 in vec {
+                    #(#builder_insert_to_df;)*
+                }
+                df!(
+                    #(#builder_df,)*
+                )
+            }
+
+        });
+    }
 
     pub(crate) fn finalize(self) -> proc_macro::TokenStream {
         let struct_name = self.struct_ident;
         let fns = self.impl_fns;
-        quote!{
+        quote! {
             #[async_trait]
             impl SsqlMarker for #struct_name {
                 #fns
             }
-        }.into()
+        }
+        .into()
     }
 }
