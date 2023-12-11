@@ -173,6 +173,9 @@ pub trait SsqlMarker {
     /// SQL: `UPDATE person SET email = 'a@gmail.com' WHERE id = 1`
     async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
 
+    fn relationship(input: &str) -> &'static str where Self: Sized;
+
+    fn primary_key(&self) -> (&'static str, &dyn ToSql);
     /// Generate a Column Expression that can be used in filtering and ordering.
     /// This method will failed if the given column name is no present in the struct.
     /// Thus it returns [`SsqlResult`]
