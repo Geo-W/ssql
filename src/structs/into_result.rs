@@ -1,7 +1,7 @@
 use polars::frame::DataFrame;
 use crate::structs::ssql_marker::SsqlMarker;
 use serde_json::Value;
-use tiberius::Row;
+use tiberius::{QueryStream, Row};
 use crate::SsqlResult;
 
 pub trait IntoResult
@@ -18,7 +18,7 @@ where
     where
         Self: Sized;
 
-    fn df(v: Vec<Self>) -> SsqlResult<Self::Df> where Self: Sized;
+    fn df(v: QueryStream) -> SsqlResult<Self::Df> where Self: Sized;
 }
 
 impl<Ta> IntoResult for Ta
@@ -42,8 +42,8 @@ where
         Ta::row_to_json(r).into()
     }
 
-    fn df(v: Vec<Self>) -> SsqlResult<Self::Df> where Self: Sized {
-        Ok(Ta::dataframe(v)?)
+    fn df(v: QueryStream) -> SsqlResult<Self::Df> where Self: Sized {
+        Ok(futures_lite::future::block_on(Ta::dataframe(v))?)
     }
 }
 
@@ -69,7 +69,7 @@ where
         (Ta::row_to_json(r).into(), Tb::row_to_json(r).into())
     }
 
-    fn df(v: Vec<Self>) -> SsqlResult<Self::Df> where Self: Sized {
+    fn df(v: QueryStream) -> SsqlResult<Self::Df> where Self: Sized {
         todo!()
     }
 }
@@ -105,7 +105,7 @@ where
         )
     }
 
-    fn df(v: Vec<Self>) -> SsqlResult<Self::Df> where Self: Sized {
+    fn df(v: QueryStream) -> SsqlResult<Self::Df> where Self: Sized {
         todo!()
     }
 }
@@ -144,7 +144,7 @@ where
         )
     }
 
-    fn df(v: Vec<Self>) -> SsqlResult<Self::Df> where Self: Sized {
+    fn df(v: QueryStream) -> SsqlResult<Self::Df> where Self: Sized {
         todo!()
     }
 }
@@ -186,7 +186,7 @@ where
         )
     }
 
-    fn df(v: Vec<Self>) -> SsqlResult<Self::Df> where Self: Sized {
+    fn df(v: QueryStream) -> SsqlResult<Self::Df> where Self: Sized {
         todo!()
     }
 }

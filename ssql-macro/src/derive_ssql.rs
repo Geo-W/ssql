@@ -69,104 +69,6 @@ impl DeriveSsql {
         });
     }
 
-    pub(crate) fn impl_row_to_struct(&mut self) {
-        let Self {
-            fields, table_name, ..
-        } = &self;
-        let builder_row_to_self_func = fields.iter().map(|f| {
-            let mn = f.clone().ident.unwrap();
-            let field_name = match table_name.as_str() {
-                "" => format!("{}", &mn),
-                _ => format!("{}.{}", &table_name, &mn),
-            };
-            let ty = &f.ty;
-            return match extract_type_from_option(ty) {
-                Some(value) => {
-                    let type_name = value.to_token_stream().to_string();
-                    match type_name.as_str() {
-                        "String" => {
-                            quote! {
-                                #mn: row.get::<&str, &str>(#field_name).map(|i| i.to_string())
-                            }
-                        }
-                        _ => {
-                            quote! {
-                                #mn: row.get::<#value, &str>(#field_name)
-                            }
-                        }
-                    }
-                }
-                None => {
-                    let type_name = ty.to_token_stream().to_string();
-                    match type_name.as_str() {
-                        "String" => {
-                            quote! {
-                                #mn: row.get::<&str, &str>(#field_name).unwrap().to_string()
-                            }
-                        }
-                        _ => {
-                            quote! {
-                                #mn: row.get::<#ty, &str>(#field_name).unwrap()
-                            }
-                        }
-                    }
-                }
-            };
-        });
-        self.impl_fns.extend(quote! {
-            fn row_to_struct(row:&Row) -> Self {
-                Self{
-                    #(#builder_row_to_self_func,)*
-                }
-            }
-        });
-    }
-
-    pub(crate) fn impl_row_to_json(&mut self) {
-        let Self {
-            fields, table_name, ..
-        } = &self;
-        let builder_row_func = fields.iter().map(|f| {
-            let mn = f.clone().ident.unwrap().to_string();
-            let field_name = match table_name.as_str() {
-                "" => format!("{}", &mn),
-                _ => format!("{}.{}", &table_name, &mn)
-            };
-            let ty = &f.ty;
-            let ty = match extract_type_from_option(ty) {
-                Some(value) => value,
-                None => ty
-            };
-            let type_name = ty.to_token_stream().to_string();
-            return match type_name.as_str() {
-                "String" => {
-                    quote! {
-                        map.insert(#mn.to_string(), row.get::<&str, &str>(#field_name).into())
-                    }
-                }
-                "NaiveDateTime" => {
-                    quote! {
-                        map.insert(#mn.to_string(), row.get::<#ty, &str>(#field_name).and_then(|x| x.to_string().into()).into())
-                    }
-                }
-                _ => {
-                    quote! {
-                        map.insert(#mn.to_string(), row.get::<#ty, &str>(#field_name).into())
-                    }
-                }
-            };
-        });
-        self.impl_fns.extend(quote! {
-
-            fn row_to_json(row:&Row) -> Map<String, Value> {
-                let mut map = Map::new();
-                #(#builder_row_func;)*
-                map
-            }
-
-        })
-    }
-
     pub(crate) fn impl_query(&mut self) {
         let Self {
             table_name,
@@ -380,6 +282,104 @@ impl DeriveSsql {
         })
     }
 
+    pub(crate) fn impl_row_to_struct(&mut self) {
+        let Self {
+            fields, table_name, ..
+        } = &self;
+        let builder_row_to_self_func = fields.iter().map(|f| {
+            let mn = f.clone().ident.unwrap();
+            let field_name = match table_name.as_str() {
+                "" => format!("{}", &mn),
+                _ => format!("{}.{}", &table_name, &mn),
+            };
+            let ty = &f.ty;
+            return match extract_type_from_option(ty) {
+                Some(value) => {
+                    let type_name = value.to_token_stream().to_string();
+                    match type_name.as_str() {
+                        "String" => {
+                            quote! {
+                                #mn: row.get::<&str, &str>(#field_name).map(|i| i.to_string())
+                            }
+                        }
+                        _ => {
+                            quote! {
+                                #mn: row.get::<#value, &str>(#field_name)
+                            }
+                        }
+                    }
+                }
+                None => {
+                    let type_name = ty.to_token_stream().to_string();
+                    match type_name.as_str() {
+                        "String" => {
+                            quote! {
+                                #mn: row.get::<&str, &str>(#field_name).unwrap().to_string()
+                            }
+                        }
+                        _ => {
+                            quote! {
+                                #mn: row.get::<#ty, &str>(#field_name).unwrap()
+                            }
+                        }
+                    }
+                }
+            };
+        });
+        self.impl_fns.extend(quote! {
+            fn row_to_struct(row:&Row) -> Self {
+                Self{
+                    #(#builder_row_to_self_func,)*
+                }
+            }
+        });
+    }
+
+    pub(crate) fn impl_row_to_json(&mut self) {
+        let Self {
+            fields, table_name, ..
+        } = &self;
+        let builder_row_func = fields.iter().map(|f| {
+            let mn = f.clone().ident.unwrap().to_string();
+            let field_name = match table_name.as_str() {
+                "" => format!("{}", &mn),
+                _ => format!("{}.{}", &table_name, &mn)
+            };
+            let ty = &f.ty;
+            let ty = match extract_type_from_option(ty) {
+                Some(value) => value,
+                None => ty
+            };
+            let type_name = ty.to_token_stream().to_string();
+            return match type_name.as_str() {
+                "String" => {
+                    quote! {
+                        map.insert(#mn.to_string(), row.get::<&str, &str>(#field_name).into())
+                    }
+                }
+                "NaiveDateTime" => {
+                    quote! {
+                        map.insert(#mn.to_string(), row.get::<#ty, &str>(#field_name).and_then(|x| x.to_string().into()).into())
+                    }
+                }
+                _ => {
+                    quote! {
+                        map.insert(#mn.to_string(), row.get::<#ty, &str>(#field_name).into())
+                    }
+                }
+            };
+        });
+        self.impl_fns.extend(quote! {
+
+            fn row_to_json(row:&Row) -> Map<String, Value> {
+                let mut map = Map::new();
+                #(#builder_row_func;)*
+                map
+            }
+
+        })
+    }
+
     #[cfg(feature = "polars")]
     pub(crate) fn impl_dataframe(&mut self) {
         let fields = &self.fields;
@@ -391,10 +391,51 @@ impl DeriveSsql {
             }
         });
 
+        let table_name = &self.table_name;
         let builder_insert_to_df = fields.iter().map(|f| {
             let field = f.clone().ident.unwrap();
-            quote! {
-                #field.push(Phant_Name1.#field)
+            let mn = f.clone().ident.unwrap().to_string();
+            let ty = &f.ty;
+            let mut is_option = false;
+            let ty = match extract_type_from_option(ty) {
+                Some(value) => { is_option = true; value },
+                None => ty
+            };
+            let type_name = ty.to_token_stream().to_string();
+            let field_name = match table_name.as_str() {
+                "" => format!("{}", &mn),
+                _ => format!("{}.{}", &table_name, &mn)
+            };
+            match is_option{
+                true => {
+                                match type_name.as_str() {
+                "String" => {
+                    quote!{
+                        #field.push(row.get::<&str, &str>(#field_name).and_then(|x| x.to_string().into()).into())
+                    }
+                },
+                _ => {
+                    quote!{
+                        #field.push(row.get::<#ty, &str>(#field_name).into())
+                    }
+                }
+            }
+                }
+                false => {
+                                match type_name.as_str() {
+                "String" => {
+                    quote!{
+                        #field.push(row.get::<&str, &str>(#field_name).and_then(|x| x.to_string().into()).unwrap().into())
+                    }
+                },
+                _ => {
+                    quote!{
+                        #field.push(row.get::<#ty, &str>(#field_name).unwrap().into())
+                    }
+                }
+            }
+
+                }
             }
         });
 
@@ -408,14 +449,20 @@ impl DeriveSsql {
 
         self.impl_fns.extend(quote! {
 
-            fn dataframe(vec: Vec<Self>) -> PolarsResult<DataFrame> {
+            async fn dataframe<'a>(stream: QueryStream<'a>) -> SsqlResult<DataFrame> {
                 #(#builder_new_vecs;)*
                 #[allow(non_snake_case)]
-                for Phant_Name1 in vec {
+                let mut stream = stream.into_row_stream();
+                while let Some(row) = stream.try_next().await? {
                     #(#builder_insert_to_df;)*
                 }
-                df!(
+                // for Phant_Name1 in vec {
+                //     #(#builder_insert_to_df;)*
+                // }
+                Ok(
+                    df!(
                     #(#builder_df,)*
+                )?
                 )
             }
 

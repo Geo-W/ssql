@@ -2,7 +2,7 @@ use async_trait::async_trait;
 #[cfg(feature = "polars")]
 use polars::prelude::*;
 use serde_json::{Map, Value};
-use tiberius::{Client, ToSql};
+use tiberius::{Client, QueryStream, ToSql};
 use tokio::net::TcpStream;
 use tokio_util::compat::Compat;
 
@@ -32,7 +32,7 @@ pub trait SsqlMarker {
 
     #[doc(hidden)]
     #[cfg(feature = "polars")]
-    fn dataframe(vec: Vec<Self>) -> PolarsResult<DataFrame>
+    async fn dataframe<'a>(stream: QueryStream<'a>) -> SsqlResult<DataFrame>
     where
         Self: Sized;
 

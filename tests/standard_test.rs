@@ -12,7 +12,7 @@ mod tests {
     use ssql::prelude::*;
 
     #[tokio::test]
-    async fn test() -> SsqlResult<()> {
+    async fn query() -> SsqlResult<()> {
         let mut conn = get_client().await;
         let query = Customerlist::query();
         let r1 = query.all(&mut conn).await?;
@@ -22,6 +22,11 @@ mod tests {
         let r3 = query.all(&mut conn).await?;
         let r4 = query.all(&mut conn).await?;
         assert!(r1.len() == r2.len() && r2.len() == r3.len() && r3.len() == r4.len());
+
+        // let r5 = Customerlist::dataframe(r1).unwrap();
+        let query = Customerlist::query();
+        let r5 = query.df(&mut conn).await;
+        dbg!(r5);
         Ok(())
     }
 
@@ -172,5 +177,12 @@ mod tests {
         Route: Option<String>,
         TransitTime: Option<String>,
         Plant: Option<String>,
+    }
+
+    #[derive(ORM)]
+    #[ssql(table=Logs)]
+    struct Logs{
+        id: i32,
+        num: String
     }
 }

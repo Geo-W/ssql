@@ -86,8 +86,8 @@ where
         &self,
         conn: &mut tiberius::Client<Compat<TcpStream>>,
     ) -> SsqlResult<<Self::Ret as IntoResult>::Df> {
-        let all = self.all(conn).await?;
-        Self::Ret::df(all)
+        // let all = self.all(conn).await?;
+        Self::Ret::df(self.core_ref().execute(conn).await?)
     }
 
     /// Perform left join on another table.
