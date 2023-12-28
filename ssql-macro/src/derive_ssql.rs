@@ -22,12 +22,12 @@ pub struct DeriveSsql<'a> {
 }
 
 struct FieldType<'a> {
-    field: &'a Field,
     ident: &'a Ident,
     // used for query
     query_name: String,
     //type for query in row.get::<?,?>()
     query_type: Type,
+    #[cfg(feature = "polars")]
     origin_type: Type,
     unwrap_quote: TokenStream,
     to_string_quote: TokenStream,
@@ -78,10 +78,10 @@ impl<'a> DeriveSsql<'a> {
             };
 
             FieldType {
-                field: x,
                 ident,
                 query_name,
                 query_type: new_ty,
+                #[cfg(feature = "polars")]
                 origin_type: ty.clone(),
                 unwrap_quote: unwrap_quote,
                 to_string_quote: to_string_quote,

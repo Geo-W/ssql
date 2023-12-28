@@ -1,8 +1,10 @@
 use async_trait::async_trait;
 #[cfg(feature = "polars")]
 use polars::prelude::*;
+#[cfg(feature = "polars")]
+use tiberius::QueryStream;
 use serde_json::{Map, Value};
-use tiberius::{Client, QueryStream, ToSql};
+use tiberius::{Client, ToSql};
 use tokio::net::TcpStream;
 use tokio_util::compat::Compat;
 
@@ -79,7 +81,7 @@ pub trait SsqlMarker {
     /// #    id: i32,
     /// #    email: Option<String>,
     /// # }
-    /// # async fn insert(mut conn: Client<Compat<TcpStream>>) {
+    /// # async fn insert(mut conn: Client<Compat<TcpStream>>) -> SsqlResult<u64> {
     ///     // example1:
     ///     Person::insert_many(vec![Person{id: 1,email: Some("a@gmail.com".to_string())},
     ///                             Person{id: 2,email: Some("b@gmail.com".to_string())}], &mut conn).await;

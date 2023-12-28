@@ -82,6 +82,11 @@ where
         Ok(ret)
     }
 
+    /// Similar to [`all`], but returns [`Polars DataFrame`] representing the query result.
+    ///
+    /// [`all`]: trait.QueryAble.html#method.all
+    /// [`Polars DataFrame`]: polars::prelude::DataFrame
+    #[cfg(feature = "polars")]
     async fn df(
         &self,
         conn: &mut tiberius::Client<Compat<TcpStream>>,

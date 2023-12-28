@@ -1,15 +1,20 @@
+#[cfg(feature = "polars")]
 use polars::frame::DataFrame;
-use crate::structs::ssql_marker::SsqlMarker;
 use serde_json::Value;
-use tiberius::{QueryStream, Row};
+#[cfg(feature = "polars")]
+use tiberius::QueryStream;
+use tiberius::Row;
+
+#[cfg(feature = "polars")]
 use crate::SsqlResult;
+use crate::structs::ssql_marker::SsqlMarker;
 
 pub trait IntoResult
 where
     Self::Js: Send + Sync,
 {
     type Js;
-    type Df;
+
     fn to_struct(r: &Row) -> Self
     where
         Self: Sized + 'static;
@@ -18,7 +23,13 @@ where
     where
         Self: Sized;
 
-    fn df(v: QueryStream) -> SsqlResult<Self::Df> where Self: Sized;
+    #[cfg(feature = "polars")]
+    type Df;
+
+    #[cfg(feature = "polars")]
+    fn df(v: QueryStream) -> SsqlResult<Self::Df>
+    where
+        Self: Sized;
 }
 
 impl<Ta> IntoResult for Ta
@@ -27,6 +38,7 @@ where
 {
     type Js = Value;
 
+    #[cfg(feature = "polars")]
     type Df = DataFrame;
     fn to_struct(r: &Row) -> Self
     where
@@ -42,7 +54,11 @@ where
         Ta::row_to_json(r).into()
     }
 
-    fn df(v: QueryStream) -> SsqlResult<Self::Df> where Self: Sized {
+    #[cfg(feature = "polars")]
+    fn df(v: QueryStream) -> SsqlResult<Self::Df>
+    where
+        Self: Sized,
+    {
         Ok(futures_lite::future::block_on(Ta::dataframe(v))?)
     }
 }
@@ -53,7 +69,6 @@ where
     Tb: SsqlMarker,
 {
     type Js = (Value, Value);
-    type Df = ();
 
     fn to_struct(r: &Row) -> Self
     where
@@ -69,7 +84,14 @@ where
         (Ta::row_to_json(r).into(), Tb::row_to_json(r).into())
     }
 
-    fn df(v: QueryStream) -> SsqlResult<Self::Df> where Self: Sized {
+    #[cfg(feature = "polars")]
+    type Df = ();
+
+    #[cfg(feature = "polars")]
+    fn df(v: QueryStream) -> SsqlResult<Self::Df>
+    where
+        Self: Sized,
+    {
         todo!()
     }
 }
@@ -81,7 +103,6 @@ where
     Tc: SsqlMarker,
 {
     type Js = (Value, Value, Value);
-    type Df = ();
 
     fn to_struct(r: &Row) -> Self
     where
@@ -105,12 +126,19 @@ where
         )
     }
 
-    fn df(v: QueryStream) -> SsqlResult<Self::Df> where Self: Sized {
+    #[cfg(feature = "polars")]
+    type Df = ();
+
+    #[cfg(feature = "polars")]
+    fn df(v: QueryStream) -> SsqlResult<Self::Df>
+    where
+        Self: Sized,
+    {
         todo!()
     }
 }
 
-impl<Ta, Tb, Tc, Td> IntoResult for (Ta, Tb, Tc,Td)
+impl<Ta, Tb, Tc, Td> IntoResult for (Ta, Tb, Tc, Td)
 where
     Ta: SsqlMarker,
     Tb: SsqlMarker,
@@ -118,7 +146,6 @@ where
     Td: SsqlMarker,
 {
     type Js = (Value, Value, Value, Value);
-    type Df = ();
 
     fn to_struct(r: &Row) -> Self
     where
@@ -144,21 +171,27 @@ where
         )
     }
 
-    fn df(v: QueryStream) -> SsqlResult<Self::Df> where Self: Sized {
+    #[cfg(feature = "polars")]
+    type Df = ();
+
+    #[cfg(feature = "polars")]
+    fn df(v: QueryStream) -> SsqlResult<Self::Df>
+    where
+        Self: Sized,
+    {
         todo!()
     }
 }
 
-impl<Ta, Tb, Tc, Td, Te> IntoResult for (Ta, Tb, Tc,Td, Te)
+impl<Ta, Tb, Tc, Td, Te> IntoResult for (Ta, Tb, Tc, Td, Te)
 where
     Ta: SsqlMarker,
     Tb: SsqlMarker,
     Tc: SsqlMarker,
     Td: SsqlMarker,
-    Te: SsqlMarker
+    Te: SsqlMarker,
 {
     type Js = (Value, Value, Value, Value, Value);
-    type Df = ();
 
     fn to_struct(r: &Row) -> Self
     where
@@ -186,7 +219,14 @@ where
         )
     }
 
-    fn df(v: QueryStream) -> SsqlResult<Self::Df> where Self: Sized {
+    #[cfg(feature = "polars")]
+    type Df = ();
+
+    #[cfg(feature = "polars")]
+    fn df(v: QueryStream) -> SsqlResult<Self::Df>
+    where
+        Self: Sized,
+    {
         todo!()
     }
 }
