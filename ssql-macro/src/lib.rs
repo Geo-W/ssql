@@ -9,7 +9,7 @@ mod utils;
 pub fn ssql(tokens: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(tokens).unwrap();
 
-    let mut impls = DeriveSsql::new(ast);
+    let mut impls = DeriveSsql::new(&ast);
     impls.impl_table_name();
     impls.impl_fields();
 

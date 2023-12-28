@@ -12,5 +12,8 @@ pub use serde_json::{Map, Value};
 
 pub use async_trait::async_trait;
 
+pub use serde_json::value::Serializer;
+pub use serde::Serialize;
+
 #[cfg(feature = "polars")]
 pub use polars::prelude::*;

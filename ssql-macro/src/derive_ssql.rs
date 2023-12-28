@@ -4,42 +4,62 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::Data::Struct;
 use syn::Fields::Named;
-use syn::{DataStruct, Field, FieldsNamed, Ident};
+use syn::{DataStruct, DeriveInput, Field, FieldsNamed, Ident, parse_quote, Type};
 
 use crate::utils::{extract_type_from_option, get_relations_and_tables_and_pk, parse_table_name};
 
-pub struct DeriveSsql {
+pub struct DeriveSsql<'a> {
     table_name: String,
-    struct_ident: Ident,
-    fields: Punctuated<Field, Comma>,
+    struct_ident: &'a Ident,
+    fields: &'a Punctuated<Field, Comma>,
     relations: Vec<String>,
     tables: Vec<String>,
     primary_key: Option<Field>,
 
+    fields_type: Vec<(&'a Field, Type)>,
+
     impl_fns: TokenStream,
 }
 
-impl DeriveSsql {
-    pub(crate) fn new(ast: syn::DeriveInput) -> Self {
+impl<'a> DeriveSsql<'a> {
+    pub(crate) fn new(ast: &'a DeriveInput) -> Self {
         let table_name = parse_table_name(&ast.attrs);
-        let fields = match ast.data {
+        let fields = match &ast.data {
             Struct(DataStruct {
-                fields: Named(FieldsNamed { named, .. }),
-                ..
-            }) => named,
+                       fields: Named(FieldsNamed { ref named, .. }),
+                       ..
+                   }) => named,
             _ => unimplemented!(),
         };
         let (relations, tables, primary_key) =
             get_relations_and_tables_and_pk(&table_name, &fields);
 
+        let str: Type = parse_quote!(String);
+
+        let fields_type = fields.iter().map(|x| {
+            let mut ty = &x.ty;
+            match extract_type_from_option(&x.ty) {
+                None => {}
+                Some(v) => {
+                    ty = v;
+                }
+            }
+            let new_ty = if ty.to_token_stream().to_string().as_str() == "String" {
+                parse_quote!(&str)
+            } else {
+                ty.clone()
+            };
+            (x, new_ty)
+        }).collect();
         Self {
             table_name,
-            struct_ident: ast.ident,
+            struct_ident: &ast.ident,
             fields,
             relations,
             tables,
             primary_key,
 
+            fields_type: fields_type,
             impl_fns: Default::default(),
         }
     }
@@ -96,7 +116,7 @@ impl DeriveSsql {
                 row.push(item.#field.into_sql())
             };
         });
-        self.impl_fns.extend(quote!{
+        self.impl_fns.extend(quote! {
 
             async fn insert_many<I: IntoIterator<Item=Self> + Send>(iter: I, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<u64>
                 where I::IntoIter: Send
@@ -134,9 +154,9 @@ impl DeriveSsql {
             .unwrap();
         let builder_insert_data = fields
             .iter()
-            .map(|f| f.clone().ident.unwrap())
+            .map(|f| f.ident.as_ref().unwrap())
             .map(|f| quote! {&self.#f});
-        self.impl_fns.extend(quote!{
+        self.impl_fns.extend(quote! {
 
              async fn insert(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()> {
                 let sql = format!("INSERT INTO {} ({}) values({})", #table_name, #builder_insert_fields, #builder_insert_params);
@@ -175,7 +195,7 @@ impl DeriveSsql {
             .filter(|f| Some(*f) != primary_key.as_ref())
             .map(|f| f.clone().ident.unwrap())
             .map(|f| quote! {&self.#f});
-        self.impl_fns.extend(quote!{
+        self.impl_fns.extend(quote! {
 
             async fn insert_ignore_pk(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()> {
                 let sql = format!("INSERT INTO {} ({}) values({})", #table_name, #builder_insert_fields_ignore_pk, #builder_insert_params_ignore_pk);
@@ -228,7 +248,7 @@ impl DeriveSsql {
             .map(|f| f.clone().ident.unwrap())
             .map(|f| quote! {&self.#f});
         let builder_update_data = builder_insert_data_ignore_pk.clone();
-        self.impl_fns.extend(quote!{
+        self.impl_fns.extend(quote! {
 
             async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()> {
                 let (pk, dt) = self.primary_key();
@@ -337,36 +357,17 @@ impl DeriveSsql {
 
     pub(crate) fn impl_row_to_json(&mut self) {
         let Self {
-            fields, table_name, ..
+            fields, table_name, fields_type,..
         } = &self;
-        let builder_row_func = fields.iter().map(|f| {
-            let mn = f.clone().ident.unwrap().to_string();
+        let builder_row_func = fields_type.iter().map(|f| {
+            let mn = f.0.clone().ident.unwrap().to_string();
             let field_name = match table_name.as_str() {
                 "" => format!("{}", &mn),
                 _ => format!("{}.{}", &table_name, &mn)
             };
-            let ty = &f.ty;
-            let ty = match extract_type_from_option(ty) {
-                Some(value) => value,
-                None => ty
-            };
-            let type_name = ty.to_token_stream().to_string();
-            return match type_name.as_str() {
-                "String" => {
-                    quote! {
-                        map.insert(#mn.to_string(), row.get::<&str, &str>(#field_name).into())
-                    }
-                }
-                "NaiveDateTime" => {
-                    quote! {
-                        map.insert(#mn.to_string(), row.get::<#ty, &str>(#field_name).and_then(|x| x.to_string().into()).into())
-                    }
-                }
-                _ => {
-                    quote! {
-                        map.insert(#mn.to_string(), row.get::<#ty, &str>(#field_name).into())
-                    }
-                }
+            let ty = &f.1;
+            return quote!{
+                map.insert(#mn.to_string(), row.get::<#ty, &str>(#field_name).serialize(Serializer).unwrap())
             };
         });
         self.impl_fns.extend(quote! {
@@ -398,7 +399,10 @@ impl DeriveSsql {
             let ty = &f.ty;
             let mut is_option = false;
             let ty = match extract_type_from_option(ty) {
-                Some(value) => { is_option = true; value },
+                Some(value) => {
+                    is_option = true;
+                    value
+                }
                 None => ty
             };
             let type_name = ty.to_token_stream().to_string();
@@ -406,35 +410,34 @@ impl DeriveSsql {
                 "" => format!("{}", &mn),
                 _ => format!("{}.{}", &table_name, &mn)
             };
-            match is_option{
+            match is_option {
                 true => {
-                                match type_name.as_str() {
-                "String" => {
-                    quote!{
+                    match type_name.as_str() {
+                        "String" => {
+                            quote! {
                         #field.push(row.get::<&str, &str>(#field_name).and_then(|x| x.to_string().into()).into())
                     }
-                },
-                _ => {
-                    quote!{
+                        }
+                        _ => {
+                            quote! {
                         #field.push(row.get::<#ty, &str>(#field_name).into())
                     }
-                }
-            }
+                        }
+                    }
                 }
                 false => {
-                                match type_name.as_str() {
-                "String" => {
-                    quote!{
+                    match type_name.as_str() {
+                        "String" => {
+                            quote! {
                         #field.push(row.get::<&str, &str>(#field_name).and_then(|x| x.to_string().into()).unwrap().into())
                     }
-                },
-                _ => {
-                    quote!{
+                        }
+                        _ => {
+                            quote! {
                         #field.push(row.get::<#ty, &str>(#field_name).unwrap().into())
                     }
-                }
-            }
-
+                        }
+                    }
                 }
             }
         });
