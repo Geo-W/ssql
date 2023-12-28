@@ -23,6 +23,8 @@ pub fn ssql(tokens: TokenStream) -> TokenStream {
     impls.impl_relationship();
 
     impls.impl_row_to_struct();
+
+    #[cfg(feature = "serde")]
     impls.impl_row_to_json();
 
     #[cfg(feature = "polars")]

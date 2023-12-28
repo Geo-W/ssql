@@ -5,7 +5,6 @@ use std::fmt::Formatter;
 
 #[cfg(feature = "polars")]
 use polars::error::PolarsError;
-use serde;
 
 /// Alias for Result<T, [`SsqlError`]>
 ///
@@ -26,6 +25,7 @@ pub enum SsqlError {
 
 impl std::error::Error for SsqlError {}
 
+#[cfg(feature = "serde")]
 impl serde::Serialize for SsqlError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

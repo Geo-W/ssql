@@ -70,6 +70,7 @@ where
     ///
     /// [`all`]: trait.QueryAble.html#method.all
     /// [`Value`]: serde_json::Value
+    #[cfg(feature = "serde")]
     async fn json(
         &self,
         conn: &mut tiberius::Client<Compat<TcpStream>>,

@@ -10,13 +10,13 @@ async fn query() -> SsqlResult<()> {
     let mut conn = get_client().await;
     let query = Person::query();
     let r1 = query.all(&mut conn).await?;
-    let r2 = query.json(&mut conn).await?;
-    dbg!(&r2);
+    // let r2 = query.json(&mut conn).await?;
+    // dbg!(&r2);
 
     let query = query.left_join::<SlowMoving>();
+    let r2 = query.all(&mut conn).await?;
     let r3 = query.all(&mut conn).await?;
-    let r4 = query.all(&mut conn).await?;
-    assert!(r1.len() == r2.len() && r2.len() == r3.len() && r3.len() == r4.len());
+    assert!(r1.len() == r2.len() && r2.len() == r3.len());
 
     Ok(())
 }

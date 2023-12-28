@@ -1,5 +1,6 @@
 #[cfg(feature = "polars")]
 use polars::frame::DataFrame;
+#[cfg(feature = "serde")]
 use serde_json::Value;
 #[cfg(feature = "polars")]
 use tiberius::QueryStream;
@@ -10,15 +11,15 @@ use crate::SsqlResult;
 use crate::structs::ssql_marker::SsqlMarker;
 
 pub trait IntoResult
-where
-    Self::Js: Send + Sync,
 {
-    type Js;
+    #[cfg(feature = "serde")]
+    type Js: Send + Sync;
 
     fn to_struct(r: &Row) -> Self
     where
         Self: Sized + 'static;
 
+    #[cfg(feature = "serde")]
     fn to_json(r: &Row) -> Self::Js
     where
         Self: Sized;
@@ -36,6 +37,7 @@ impl<Ta> IntoResult for Ta
 where
     Ta: SsqlMarker,
 {
+    #[cfg(feature = "serde")]
     type Js = Value;
 
     #[cfg(feature = "polars")]
@@ -47,6 +49,7 @@ where
         Ta::row_to_struct(r)
     }
 
+    #[cfg(feature = "serde")]
     fn to_json(r: &Row) -> Value
     where
         Self: Sized,
@@ -68,6 +71,7 @@ where
     Ta: SsqlMarker,
     Tb: SsqlMarker,
 {
+    #[cfg(feature = "serde")]
     type Js = (Value, Value);
 
     fn to_struct(r: &Row) -> Self
@@ -77,6 +81,7 @@ where
         (Ta::row_to_struct(r), Tb::row_to_struct(r))
     }
 
+    #[cfg(feature = "serde")]
     fn to_json(r: &Row) -> Self::Js
     where
         Self: Sized,
@@ -102,6 +107,7 @@ where
     Tb: SsqlMarker,
     Tc: SsqlMarker,
 {
+    #[cfg(feature = "serde")]
     type Js = (Value, Value, Value);
 
     fn to_struct(r: &Row) -> Self
@@ -115,6 +121,7 @@ where
         )
     }
 
+    #[cfg(feature = "serde")]
     fn to_json(r: &Row) -> Self::Js
     where
         Self: Sized,
@@ -145,6 +152,7 @@ where
     Tc: SsqlMarker,
     Td: SsqlMarker,
 {
+    #[cfg(feature = "serde")]
     type Js = (Value, Value, Value, Value);
 
     fn to_struct(r: &Row) -> Self
@@ -159,6 +167,7 @@ where
         )
     }
 
+    #[cfg(feature = "serde")]
     fn to_json(r: &Row) -> Self::Js
     where
         Self: Sized,
@@ -191,6 +200,7 @@ where
     Td: SsqlMarker,
     Te: SsqlMarker,
 {
+    #[cfg(feature = "serde")]
     type Js = (Value, Value, Value, Value, Value);
 
     fn to_struct(r: &Row) -> Self
@@ -206,6 +216,7 @@ where
         )
     }
 
+    #[cfg(feature = "serde")]
     fn to_json(r: &Row) -> Self::Js
     where
         Self: Sized,

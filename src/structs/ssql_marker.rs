@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use polars::prelude::*;
 #[cfg(feature = "polars")]
 use tiberius::QueryStream;
+#[cfg(feature = "serde")]
 use serde_json::{Map, Value};
 use tiberius::{Client, ToSql};
 use tokio::net::TcpStream;
@@ -24,6 +25,7 @@ pub trait SsqlMarker {
     where
         Self: Sized;
     #[doc(hidden)]
+    #[cfg(feature = "serde")]
     fn row_to_json(row: &tiberius::Row) -> Map<String, Value>
     where
         Self: Sized;

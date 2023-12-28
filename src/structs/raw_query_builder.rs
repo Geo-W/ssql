@@ -1,12 +1,15 @@
-use crate::structs::into_result::IntoResult;
-use crate::structs::query_core::{Executable, QueryCore, RawQuery};
-use crate::{RowStream, SsqlMarker, SsqlResult};
-use futures_lite::StreamExt;
-use serde_json::Value;
 use std::marker::PhantomData;
+
+use futures_lite::StreamExt;
+#[cfg(feature = "serde")]
+use serde_json::Value;
 use tiberius::Client;
 use tokio::net::TcpStream;
 use tokio_util::compat::Compat;
+
+use crate::{RowStream, SsqlMarker, SsqlResult};
+use crate::structs::into_result::IntoResult;
+use crate::structs::query_core::{Executable, QueryCore, RawQuery};
 
 pub struct RawQueryBuilder<'a, T>
 where
@@ -48,6 +51,7 @@ where
         }
     }
 
+    #[cfg(feature = "serde")]
     pub async fn json(
         &self,
         conn: &mut tiberius::Client<Compat<TcpStream>>,
