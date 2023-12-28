@@ -16,9 +16,21 @@ pub struct DeriveSsql<'a> {
     tables: Vec<String>,
     primary_key: Option<Field>,
 
-    fields_type: Vec<(&'a Field, Type)>,
+    fields_type: Vec<FieldType<'a>>,
 
     impl_fns: TokenStream,
+}
+
+struct FieldType<'a> {
+    field: &'a Field,
+    ident: &'a Ident,
+    // used for query
+    query_name: String,
+    //type for query in row.get::<?,?>()
+    query_type: Type,
+    origin_type: Type,
+    unwrap_quote: TokenStream,
+    to_string_quote: TokenStream,
 }
 
 impl<'a> DeriveSsql<'a> {
@@ -34,22 +46,46 @@ impl<'a> DeriveSsql<'a> {
         let (relations, tables, primary_key) =
             get_relations_and_tables_and_pk(&table_name, &fields);
 
-        let str: Type = parse_quote!(String);
+        // let str: Type = parse_quote!(String);
 
         let fields_type = fields.iter().map(|x| {
             let mut ty = &x.ty;
-            match extract_type_from_option(&x.ty) {
-                None => {}
+            let unwrap_quote = match extract_type_from_option(&x.ty) {
+                None => {
+                    quote! {
+                        .unwrap()
+                    }
+                }
                 Some(v) => {
                     ty = v;
+                    quote! {}
                 }
-            }
-            let new_ty = if ty.to_token_stream().to_string().as_str() == "String" {
-                parse_quote!(&str)
-            } else {
-                ty.clone()
             };
-            (x, new_ty)
+            let (new_ty, to_string_quote) = if ty.to_token_stream().to_string().as_str() == "String" {
+                (parse_quote!(&str), quote! {.map(|i| i.to_string())})
+            } else {
+                (ty.clone(), quote! {})
+            };
+
+            let ident = x.ident.as_ref().unwrap();
+            let query_name = match table_name.is_empty() {
+                true => {
+                    format!("{}", &ident)
+                }
+                false => {
+                    format!("{}.{}", &table_name, &ident)
+                }
+            };
+
+            FieldType {
+                field: x,
+                ident,
+                query_name,
+                query_type: new_ty,
+                origin_type: ty.clone(),
+                unwrap_quote: unwrap_quote,
+                to_string_quote: to_string_quote,
+            }
         }).collect();
         Self {
             table_name,
@@ -303,47 +339,17 @@ impl<'a> DeriveSsql<'a> {
     }
 
     pub(crate) fn impl_row_to_struct(&mut self) {
-        let Self {
-            fields, table_name, ..
-        } = &self;
-        let builder_row_to_self_func = fields.iter().map(|f| {
-            let mn = f.clone().ident.unwrap();
-            let field_name = match table_name.as_str() {
-                "" => format!("{}", &mn),
-                _ => format!("{}.{}", &table_name, &mn),
-            };
-            let ty = &f.ty;
-            return match extract_type_from_option(ty) {
-                Some(value) => {
-                    let type_name = value.to_token_stream().to_string();
-                    match type_name.as_str() {
-                        "String" => {
-                            quote! {
-                                #mn: row.get::<&str, &str>(#field_name).map(|i| i.to_string())
-                            }
-                        }
-                        _ => {
-                            quote! {
-                                #mn: row.get::<#value, &str>(#field_name)
-                            }
-                        }
-                    }
-                }
-                None => {
-                    let type_name = ty.to_token_stream().to_string();
-                    match type_name.as_str() {
-                        "String" => {
-                            quote! {
-                                #mn: row.get::<&str, &str>(#field_name).unwrap().to_string()
-                            }
-                        }
-                        _ => {
-                            quote! {
-                                #mn: row.get::<#ty, &str>(#field_name).unwrap()
-                            }
-                        }
-                    }
-                }
+        let fields_type = &self.fields_type;
+        let builder_row_to_self_func = fields_type.iter().map(|f| {
+            let ident = &f.ident;
+            let ty = &f.query_type;
+            let unwrap = &f.unwrap_quote;
+            let to_string = &f.to_string_quote;
+            let query_name = &f.query_name;
+
+
+            return quote! {
+                #ident: row.get::<#ty, &str>(#query_name)#to_string #unwrap
             };
         });
         self.impl_fns.extend(quote! {
@@ -356,18 +362,13 @@ impl<'a> DeriveSsql<'a> {
     }
 
     pub(crate) fn impl_row_to_json(&mut self) {
-        let Self {
-            fields, table_name, fields_type,..
-        } = &self;
+        let fields_type = &self.fields_type;
         let builder_row_func = fields_type.iter().map(|f| {
-            let mn = f.0.clone().ident.unwrap().to_string();
-            let field_name = match table_name.as_str() {
-                "" => format!("{}", &mn),
-                _ => format!("{}.{}", &table_name, &mn)
-            };
-            let ty = &f.1;
-            return quote!{
-                map.insert(#mn.to_string(), row.get::<#ty, &str>(#field_name).serialize(Serializer).unwrap())
+            let ident_str = f.ident.to_string();
+            let query_name = &f.query_name;
+            let ty = &f.query_type;
+            return quote! {
+                map.insert(#ident_str.to_string(), row.get::<#ty, &str>(#query_name).serialize(Serializer).unwrap())
             };
         });
         self.impl_fns.extend(quote! {
@@ -383,67 +384,27 @@ impl<'a> DeriveSsql<'a> {
 
     #[cfg(feature = "polars")]
     pub(crate) fn impl_dataframe(&mut self) {
-        let fields = &self.fields;
-        let builder_new_vecs = fields.iter().map(|f| {
-            let field = f.clone().ident.unwrap();
-            let ty = &f.ty;
+        let fields_type = &self.fields_type;
+        let builder_new_vecs = fields_type.iter().map(|f| {
+            let ident = f.ident;
+            let ty = &f.origin_type;
             quote! {
-                let mut #field : Vec<#ty> = vec![]
+                let mut #ident : Vec<Option<#ty>> = vec![]
             }
         });
 
-        let table_name = &self.table_name;
-        let builder_insert_to_df = fields.iter().map(|f| {
-            let field = f.clone().ident.unwrap();
-            let mn = f.clone().ident.unwrap().to_string();
-            let ty = &f.ty;
-            let mut is_option = false;
-            let ty = match extract_type_from_option(ty) {
-                Some(value) => {
-                    is_option = true;
-                    value
-                }
-                None => ty
-            };
-            let type_name = ty.to_token_stream().to_string();
-            let field_name = match table_name.as_str() {
-                "" => format!("{}", &mn),
-                _ => format!("{}.{}", &table_name, &mn)
-            };
-            match is_option {
-                true => {
-                    match type_name.as_str() {
-                        "String" => {
-                            quote! {
-                        #field.push(row.get::<&str, &str>(#field_name).and_then(|x| x.to_string().into()).into())
-                    }
-                        }
-                        _ => {
-                            quote! {
-                        #field.push(row.get::<#ty, &str>(#field_name).into())
-                    }
-                        }
-                    }
-                }
-                false => {
-                    match type_name.as_str() {
-                        "String" => {
-                            quote! {
-                        #field.push(row.get::<&str, &str>(#field_name).and_then(|x| x.to_string().into()).unwrap().into())
-                    }
-                        }
-                        _ => {
-                            quote! {
-                        #field.push(row.get::<#ty, &str>(#field_name).unwrap().into())
-                    }
-                        }
-                    }
-                }
+        let builder_insert_to_df = fields_type.iter().map(|f| {
+            let field = f.ident;
+            let ty = &f.query_type;
+            let query_name = &f.query_name;
+            let to_string = &f.to_string_quote;
+            quote! {
+                #field.push(row.get::<#ty, &str>(#query_name)#to_string)
             }
         });
 
-        let builder_df = fields.iter().map(|f| {
-            let field = f.clone().ident.unwrap();
+        let builder_df = fields_type.iter().map(|f| {
+            let field = f.ident;
             let mn = field.to_string();
             quote! {
                 #mn => #field
@@ -459,9 +420,6 @@ impl<'a> DeriveSsql<'a> {
                 while let Some(row) = stream.try_next().await? {
                     #(#builder_insert_to_df;)*
                 }
-                // for Phant_Name1 in vec {
-                //     #(#builder_insert_to_df;)*
-                // }
                 Ok(
                     df!(
                     #(#builder_df,)*
