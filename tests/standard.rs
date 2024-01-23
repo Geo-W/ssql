@@ -114,8 +114,7 @@ async fn raw_query_and_chrono() {
 #[test]
 fn is_normal() {
     fn async_safe<T: Sized + Send + Sync + Unpin>(_: T) {}
-
-    fn _object_safety(_: &dyn SsqlMarker) {}
+    // fn _object_safety(_: &dyn SsqlMarker) {}
 
     async_safe(PersonRaw::default());
 }

@@ -4,7 +4,7 @@ use std::task::{Context, Poll};
 use futures_lite::{ready, Stream};
 use futures_lite::StreamExt;
 use tiberius::{QueryItem, QueryStream, Row};
-pub use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
+
 
 /// stream
 pub struct RowStream<'a, T> {

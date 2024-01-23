@@ -1,11 +1,10 @@
-use async_trait::async_trait;
 #[cfg(feature = "polars")]
 use polars::prelude::*;
-#[cfg(feature = "polars")]
-use tiberius::QueryStream;
 #[cfg(feature = "serde")]
 use serde_json::{Map, Value};
 use tiberius::{Client, ToSql};
+#[cfg(feature = "polars")]
+use tiberius::QueryStream;
 use tokio::net::TcpStream;
 use tokio_util::compat::Compat;
 
@@ -14,8 +13,7 @@ use crate::structs::query_core::QueryCore;
 use crate::structs::raw_query_builder::RawQueryBuilder;
 
 /// a trait automatically derived via `#[derive(ORM)]` macro, all these methods are available.
-#[async_trait]
-pub trait SsqlMarker {
+pub trait SsqlMarker: Send + Sync {
     #[doc(hidden)]
     fn table_name() -> &'static str
     where
@@ -36,7 +34,9 @@ pub trait SsqlMarker {
 
     #[doc(hidden)]
     #[cfg(feature = "polars")]
-    async fn dataframe<'a>(stream: QueryStream<'a>) -> SsqlResult<DataFrame>
+    fn dataframe<'a>(
+        stream: QueryStream<'a>,
+    ) -> impl std::future::Future<Output = SsqlResult<DataFrame>> + Send
     where
         Self: Sized;
 
@@ -66,12 +66,15 @@ pub trait SsqlMarker {
     where
         Self: Sized,
     {
-        let mut q= QueryCore::default();
+        let mut q = QueryCore::default();
         q.raw_sql = Some(sql.to_string());
         for p in params {
             q.query_params.push(*p);
         }
-        RawQueryBuilder{ core: q, t: Default::default() }
+        RawQueryBuilder {
+            core: q,
+            t: Default::default(),
+        }
     }
 
     /// Bulk insert, takes everything that can be turned into iterator that generate specific structs.
@@ -97,10 +100,10 @@ pub trait SsqlMarker {
     ///         }), &mut conn).await
     /// # }
     /// ```
-    async fn insert_many<I: IntoIterator<Item = Self> + Send>(
+    fn insert_many<I: IntoIterator<Item = Self> + Send>(
         iter: I,
         conn: &mut Client<Compat<TcpStream>>,
-    ) -> SsqlResult<u64>
+    ) -> impl std::future::Future<Output = SsqlResult<u64>> + Send
     where
         I::IntoIter: Send,
         Self: Sized;
@@ -120,7 +123,10 @@ pub trait SsqlMarker {
     /// # }
     /// ```
     /// SQL: `INSERT INTO person (id, email) VALUES ( 1, 'a@gmail.com')`
-    async fn insert(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
+    fn insert(
+        self,
+        conn: &mut Client<Compat<TcpStream>>,
+    ) -> impl std::future::Future<Output = SsqlResult<()>> + Send;
 
     /// Insert one item while ignoring the primary key.
     /// Specified for those using `Identity` or `Auto-Increment` as primary key.
@@ -143,7 +149,10 @@ pub trait SsqlMarker {
     /// # }
     /// ```
     /// SQL: `INSERT INTO person (email) VALUES ('a@gmail.com')`
-    async fn insert_ignore_pk(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
+    fn insert_ignore_pk(
+        self,
+        conn: &mut Client<Compat<TcpStream>>,
+    ) -> impl std::future::Future<Output = SsqlResult<()>> + Send where Self: Sized;
 
     /// Delete one item based on primary key, consume self.
     /// Will panic if primary key is not set.
@@ -162,7 +171,10 @@ pub trait SsqlMarker {
     ///  }
     /// ```
     /// SQL: `DELETE FROM person WHERE id = 1`
-    async fn delete(self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
+    fn delete(
+        self,
+        conn: &mut Client<Compat<TcpStream>>,
+    ) -> impl std::future::Future<Output = SsqlResult<()>> + Send where Self: Sized;
 
     /// Update one item based on primary key, borrow self.
     /// Will panic if primary key is not set.
@@ -181,10 +193,15 @@ pub trait SsqlMarker {
     ///  }
     /// ```
     /// SQL: `UPDATE person SET email = 'a@gmail.com' WHERE id = 1`
-    async fn update(&self, conn: &mut Client<Compat<TcpStream>>) -> SsqlResult<()>;
+    fn update(
+        &self,
+        conn: &mut Client<Compat<TcpStream>>,
+    ) -> impl std::future::Future<Output = SsqlResult<()>> + Send where Self: Sized;
 
     #[doc(hidden)]
-    fn relationship(input: &str) -> &'static str where Self: Sized;
+    fn relationship(input: &str) -> &'static str
+    where
+        Self: Sized;
 
     #[doc(hidden)]
     fn primary_key(&self) -> (&'static str, &dyn ToSql);

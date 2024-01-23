@@ -361,6 +361,7 @@ impl<'a> DeriveSsql<'a> {
         });
     }
 
+    #[cfg(feature = "serde")]
     pub(crate) fn impl_row_to_json(&mut self) {
         let fields_type = &self.fields_type;
         let builder_row_func = fields_type.iter().map(|f| {
@@ -434,7 +435,6 @@ impl<'a> DeriveSsql<'a> {
         let struct_name = self.struct_ident;
         let fns = self.impl_fns;
         quote! {
-            #[async_trait]
             impl SsqlMarker for #struct_name {
                 #fns
             }
