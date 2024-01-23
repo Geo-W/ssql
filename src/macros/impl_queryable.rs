@@ -1,7 +1,6 @@
 macro_rules! impl_queryable {
     ($this_model:ident, $nxt_model: ident, [$($Tables: ident),*],
         [$($field: ident),*]) => {
-        #[async_trait]
         impl<'a, $($Tables),*> QueryAble<'a> for $this_model<'a, $($Tables),*>
         where
             $($Tables: SsqlMarker + Send + Sync + 'static, )*

@@ -1,6 +1,5 @@
 macro_rules! impl_corevisitor {
     ($this_model:ident, [$($Tables: ident),*]) => {
-        #[async_trait]
         impl<'a, $($Tables),*> CoreVisitor<'a> for $this_model<'a, $($Tables),*>
         where
             $($Tables: SsqlMarker, )*
@@ -15,4 +14,3 @@ macro_rules! impl_corevisitor {
         }
     };
 }
-

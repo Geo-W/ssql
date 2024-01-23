@@ -1,6 +1,6 @@
+use std::future::Future;
 use std::marker::PhantomData;
 
-use async_trait::async_trait;
 use futures_lite::StreamExt;
 use tokio::net::TcpStream;
 use tokio_util::compat::Compat;
@@ -17,7 +17,6 @@ pub trait CoreVisitor<'a> {
 }
 
 /// Core trait for constructing and conducting query.
-#[async_trait]
 pub trait QueryAble<'a>: Send + Sync + CoreVisitor<'a>
 where
     Self::Ret: IntoResult + Send + Sync + 'static,
@@ -29,40 +28,46 @@ where
 
     /// Getting data from query builder instance, will panic if data type defined in struct is not corresponding to the tables.
     /// Returns Vector containing tuple of TABLE structs `Vec<(Ta..Te)>`, depends on how much tables joined in this query builder.
-    async fn all(
+    fn all(
         &self,
         conn: &mut tiberius::Client<Compat<TcpStream>>,
-    ) -> SsqlResult<Vec<Self::Ret>> {
-        let mut stream = self.core_ref().execute(conn).await?.into_row_stream();
-        let mut ret = vec![];
-        while let Some(row) = stream.try_next().await? {
-            ret.push(Self::Ret::to_struct(&row));
+    ) -> impl Future<Output = SsqlResult<Vec<Self::Ret>>> + Send {
+        async move {
+            let mut stream = self.core_ref().execute(conn).await?.into_row_stream();
+            let mut ret = vec![];
+            while let Some(row) = stream.try_next().await? {
+                ret.push(Self::Ret::to_struct(&row));
+            }
+            Ok(ret)
         }
-        Ok(ret)
     }
 
     /// Similar to [`all`], but returns a stream producing tuple of structs instead of a whole vector.
     ///
     /// [`all`]: trait.QueryAble.html#method.all
-    async fn stream<'b>(
+    fn stream<'b>(
         &self,
         conn: &'b mut tiberius::Client<Compat<TcpStream>>,
-    ) -> SsqlResult<RowStream<'b, Self::Ret>> {
-        let stream = self.core_ref().execute(conn).await?;
-        Ok(RowStream::new(stream, Self::Ret::to_struct))
+    ) -> impl Future<Output = SsqlResult<RowStream<'b, Self::Ret>>> + Send {
+        async move {
+            let stream = self.core_ref().execute(conn).await?;
+            Ok(RowStream::new(stream, Self::Ret::to_struct))
+        }
     }
 
     /// Similar to [`all`], but returns first row only.
     ///
     /// [`all`]: trait.QueryAble.html#method.all
-    async fn one(
+    fn one(
         &self,
         conn: &mut tiberius::Client<Compat<TcpStream>>,
-    ) -> SsqlResult<Option<Self::Ret>> {
-        let row = self.core_ref().execute(conn).await?.into_row().await?;
-        match row {
-            None => Ok(None),
-            Some(row) => Ok(Some(Self::Ret::to_struct(&row))),
+    ) -> impl Future<Output = SsqlResult<Option<Self::Ret>>> + Send {
+        async move {
+            let row = self.core_ref().execute(conn).await?.into_row().await?;
+            match row {
+                None => Ok(None),
+                Some(row) => Ok(Some(Self::Ret::to_struct(&row))),
+            }
         }
     }
 
@@ -71,16 +76,19 @@ where
     /// [`all`]: trait.QueryAble.html#method.all
     /// [`Value`]: serde_json::Value
     #[cfg(feature = "serde")]
-    async fn json(
+    fn json(
         &self,
         conn: &mut tiberius::Client<Compat<TcpStream>>,
-    ) -> SsqlResult<Vec<<<Self as QueryAble<'a>>::Ret as IntoResult>::Js>> {
-        let mut stream = self.core_ref().execute(conn).await?.into_row_stream();
-        let mut ret = vec![];
-        while let Some(row) = stream.try_next().await? {
-            ret.push(Self::Ret::to_json(&row))
+    ) -> impl Future<Output = SsqlResult<Vec<<<Self as QueryAble<'a>>::Ret as IntoResult>::Js>>> + Send
+    {
+        async move {
+            let mut stream = self.core_ref().execute(conn).await?.into_row_stream();
+            let mut ret = vec![];
+            while let Some(row) = stream.try_next().await? {
+                ret.push(Self::Ret::to_json(&row))
+            }
+            Ok(ret)
         }
-        Ok(ret)
     }
 
     /// Similar to [`all`], but returns [`Polars DataFrame`] representing the query result.
@@ -88,12 +96,12 @@ where
     /// [`all`]: trait.QueryAble.html#method.all
     /// [`Polars DataFrame`]: polars::prelude::DataFrame
     #[cfg(feature = "polars")]
-    async fn df(
+    fn df(
         &self,
         conn: &mut tiberius::Client<Compat<TcpStream>>,
-    ) -> SsqlResult<<Self::Ret as IntoResult>::Df> {
+    ) -> impl Future<Output = SsqlResult<<Self::Ret as IntoResult>::Df>> + Send {
         // let all = self.all(conn).await?;
-        Self::Ret::df(self.core_ref().execute(conn).await?)
+        async move { Self::Ret::df(self.core_ref().execute(conn).await?) }
     }
 
     /// Perform left join on another table.
@@ -275,7 +283,6 @@ where
     te: PhantomData<Te>,
 }
 
-#[async_trait]
 impl<'a, Ta> QueryAble<'a> for QueryBuilderI<'a, Ta>
 where
     Ta: SsqlMarker + Send + Sync + 'static,
@@ -298,11 +305,20 @@ where
 }
 
 impl_queryable!(QueryBuilderII, QueryBuilderIII, [Ta, Tb], [ta, tb, tc]);
-impl_queryable!(QueryBuilderIII, QueryBuilderIV, [Ta, Tb, Tc], [ta, tb, tc, td]);
-impl_queryable!(QueryBuilderIV, QueryBuilderV, [Ta, Tb, Tc, Td], [ta, tb, tc, td, te]);
+impl_queryable!(
+    QueryBuilderIII,
+    QueryBuilderIV,
+    [Ta, Tb, Tc],
+    [ta, tb, tc, td]
+);
+impl_queryable!(
+    QueryBuilderIV,
+    QueryBuilderV,
+    [Ta, Tb, Tc, Td],
+    [ta, tb, tc, td, te]
+);
 
-#[async_trait]
-impl<'a, Ta, Tb, Tc, Td, Te> QueryAble<'a> for QueryBuilderV<'a, Ta, Tb,Tc,Td,Te>
+impl<'a, Ta, Tb, Tc, Td, Te> QueryAble<'a> for QueryBuilderV<'a, Ta, Tb, Tc, Td, Te>
 where
     Ta: SsqlMarker + Send + Sync + 'static,
     Tb: SsqlMarker + Send + Sync + 'static,

@@ -34,8 +34,7 @@ async fn stream() {
 #[tokio::test]
 async fn filter() -> SsqlResult<()> {
     let mut client = get_client().await;
-    let query =
-        Customerlist::query().filter(Customerlist::col("ship_to_id")?.contains(&"9706"))?;
+    let query = Customerlist::query().filter(Customerlist::col("ship_to_id")?.contains(&"9706"))?;
     // .filter(
     //     Customerlist::col("volume")?.eq(&666)
     // )?;
@@ -72,7 +71,7 @@ async fn insert_one() {
         Email: "f".to_string(),
         dt: None,
     };
-    let ret = item.insert_ignore_pk(&mut conn).await;
+    let ret = item.insert(&mut conn).await;
     assert_eq!(ret.is_ok(), true);
 }
 
