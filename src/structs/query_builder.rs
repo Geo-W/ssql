@@ -101,7 +101,7 @@ where
         conn: &mut tiberius::Client<Compat<TcpStream>>,
     ) -> impl Future<Output = SsqlResult<<Self::Ret as IntoResult>::Df>> + Send {
         // let all = self.all(conn).await?;
-        async move { Self::Ret::df(self.core_ref().execute(conn).await?) }
+        async move { Self::Ret::df(self.core_ref().execute(conn).await?).await }
     }
 
     /// Perform left join on another table.

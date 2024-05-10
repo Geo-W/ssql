@@ -26,19 +26,20 @@
 //! }
 //!
 //! async fn _get<'a>(client: &'a mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<()> {
-//!         let mut query = Person::query()
-//!         .join::<Posts>();
+//!     let mut query = Person::query();
 //!
-//!     // return a vector of struct
-//!     let vec1 = query.get_struct::<Posts>(client).await?;
-//!     let (vec1, vec2) = query.get_struct_2::<Person, Posts>(client).await?;
+//!     // return Vec<Person>
+//!     let vec1 = query.all(client).await?;
 //!
-//!     // return a vector of serde_json::Value;
-//!     let vec1 = query.get_serialized::<Person>(client).await?;
+//!     // return Vec<Value>
+//!     let js = query.json(client).await?;
 //!
-//!     // with polars feature enabled, return DataFrame;
-//!     let (df1, df2) = query.get_dataframe_2::<Person, Posts>(client).await?;
+//!     // return Polars DataFrame
+//!     let df = query.df(client).await?;
 //!
+//!     // return Vec<(Person, Posts)>
+//!     let query = query.left_join::<Posts>();
+//!     let vec2 = query.all(client).await?;
 //!
 //!     Ok(())
 //! }
@@ -141,7 +142,7 @@
 //! async fn _get<'a>(client: &'a mut tiberius::Client<Compat<TcpStream>>) -> SsqlResult<()> {
 //!
 //! let query = PersonRaw::raw_query("SELECT id, email, dt FROM Person where id = @p1", &[&1]);
-//!  let data = query.get_struct::<PersonRaw>(client).await;
+//!  let data = query.all(client).await;
 //!  Ok(())
 //! }
 //! ```

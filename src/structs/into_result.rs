@@ -6,18 +6,17 @@ use serde_json::Value;
 use tiberius::QueryStream;
 use tiberius::Row;
 
+use crate::structs::ssql_marker::SsqlMarker;
 #[cfg(feature = "polars")]
 use crate::SsqlResult;
-use crate::structs::ssql_marker::SsqlMarker;
 
-pub trait IntoResult
-{
-    #[cfg(feature = "serde")]
-    type Js: Send + Sync;
-
+pub trait IntoResult {
     fn to_struct(r: &Row) -> Self
     where
         Self: Sized + 'static;
+
+    #[cfg(feature = "serde")]
+    type Js: Send + Sync;
 
     #[cfg(feature = "serde")]
     fn to_json(r: &Row) -> Self::Js
@@ -28,7 +27,7 @@ pub trait IntoResult
     type Df;
 
     #[cfg(feature = "polars")]
-    fn df(v: QueryStream) -> SsqlResult<Self::Df>
+    fn df(v: QueryStream<'_>) -> impl std::future::Future<Output = SsqlResult<Self::Df>> + Send
     where
         Self: Sized;
 }
@@ -37,11 +36,6 @@ impl<Ta> IntoResult for Ta
 where
     Ta: SsqlMarker,
 {
-    #[cfg(feature = "serde")]
-    type Js = Value;
-
-    #[cfg(feature = "polars")]
-    type Df = DataFrame;
     fn to_struct(r: &Row) -> Self
     where
         Self: Sized + 'static,
@@ -49,6 +43,8 @@ where
         Ta::row_to_struct(r)
     }
 
+    #[cfg(feature = "serde")]
+    type Js = Value;
     #[cfg(feature = "serde")]
     fn to_json(r: &Row) -> Value
     where
@@ -58,11 +54,14 @@ where
     }
 
     #[cfg(feature = "polars")]
-    fn df(v: QueryStream) -> SsqlResult<Self::Df>
+    type Df = DataFrame;
+
+    #[cfg(feature = "polars")]
+    async fn df(v: QueryStream<'_>) -> SsqlResult<Self::Df>
     where
         Self: Sized,
     {
-        Ok(futures_lite::future::block_on(Ta::dataframe(v))?)
+        Ta::dataframe(v).await
     }
 }
 
@@ -71,15 +70,15 @@ where
     Ta: SsqlMarker,
     Tb: SsqlMarker,
 {
-    #[cfg(feature = "serde")]
-    type Js = (Value, Value);
-
     fn to_struct(r: &Row) -> Self
     where
         Self: Sized + 'static,
     {
         (Ta::row_to_struct(r), Tb::row_to_struct(r))
     }
+
+    #[cfg(feature = "serde")]
+    type Js = (Value, Value);
 
     #[cfg(feature = "serde")]
     fn to_json(r: &Row) -> Self::Js
@@ -90,14 +89,14 @@ where
     }
 
     #[cfg(feature = "polars")]
-    type Df = ();
+    type Df = (DataFrame, DataFrame);
 
     #[cfg(feature = "polars")]
-    fn df(v: QueryStream) -> SsqlResult<Self::Df>
+    async fn df(v: QueryStream<'_>) -> SsqlResult<Self::Df>
     where
         Self: Sized,
     {
-        todo!()
+        Ok((Ta::dataframe(v).await?, Tb::dataframe(v).await?))
     }
 }
 
@@ -107,9 +106,6 @@ where
     Tb: SsqlMarker,
     Tc: SsqlMarker,
 {
-    #[cfg(feature = "serde")]
-    type Js = (Value, Value, Value);
-
     fn to_struct(r: &Row) -> Self
     where
         Self: Sized + 'static,
@@ -120,6 +116,9 @@ where
             Tc::row_to_struct(r),
         )
     }
+
+    #[cfg(feature = "serde")]
+    type Js = (Value, Value, Value);
 
     #[cfg(feature = "serde")]
     fn to_json(r: &Row) -> Self::Js
@@ -137,7 +136,7 @@ where
     type Df = ();
 
     #[cfg(feature = "polars")]
-    fn df(v: QueryStream) -> SsqlResult<Self::Df>
+    async fn df(v: QueryStream<'_>) -> SsqlResult<()>
     where
         Self: Sized,
     {
@@ -152,9 +151,6 @@ where
     Tc: SsqlMarker,
     Td: SsqlMarker,
 {
-    #[cfg(feature = "serde")]
-    type Js = (Value, Value, Value, Value);
-
     fn to_struct(r: &Row) -> Self
     where
         Self: Sized + 'static,
@@ -166,6 +162,9 @@ where
             Td::row_to_struct(r),
         )
     }
+
+    #[cfg(feature = "serde")]
+    type Js = (Value, Value, Value, Value);
 
     #[cfg(feature = "serde")]
     fn to_json(r: &Row) -> Self::Js
@@ -184,7 +183,7 @@ where
     type Df = ();
 
     #[cfg(feature = "polars")]
-    fn df(v: QueryStream) -> SsqlResult<Self::Df>
+    async fn df(v: QueryStream<'_>) -> SsqlResult<()>
     where
         Self: Sized,
     {
@@ -200,9 +199,6 @@ where
     Td: SsqlMarker,
     Te: SsqlMarker,
 {
-    #[cfg(feature = "serde")]
-    type Js = (Value, Value, Value, Value, Value);
-
     fn to_struct(r: &Row) -> Self
     where
         Self: Sized + 'static,
@@ -215,6 +211,9 @@ where
             Te::row_to_struct(r),
         )
     }
+
+    #[cfg(feature = "serde")]
+    type Js = (Value, Value, Value, Value, Value);
 
     #[cfg(feature = "serde")]
     fn to_json(r: &Row) -> Self::Js
@@ -234,7 +233,7 @@ where
     type Df = ();
 
     #[cfg(feature = "polars")]
-    fn df(v: QueryStream) -> SsqlResult<Self::Df>
+    async fn df(v: QueryStream<'_>) -> SsqlResult<()>
     where
         Self: Sized,
     {

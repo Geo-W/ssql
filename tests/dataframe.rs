@@ -11,7 +11,7 @@ use tiberius::Client;
 #[tokio::test]
 async fn data_frame() {
     let mut client = get_client().await;
-    let df = Person::query().df(&mut client).await;
+    let df = Person::query().df(&mut client).await?;
     dbg!(df);
 }
 
