@@ -89,14 +89,14 @@ where
     }
 
     #[cfg(feature = "polars")]
-    type Df = (DataFrame, DataFrame);
+    type Df = ();
 
     #[cfg(feature = "polars")]
     async fn df(v: QueryStream<'_>) -> SsqlResult<Self::Df>
     where
         Self: Sized,
     {
-        Ok((Ta::dataframe(v).await?, Tb::dataframe(v).await?))
+        todo!()
     }
 }
 
