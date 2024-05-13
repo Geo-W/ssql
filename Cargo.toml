@@ -17,7 +17,7 @@ chrono = ["tiberius/chrono", "dep:chrono"]
 serde = ["dep:serde", "dep:serde_json", "chrono/serde", "ssql-macro/serde" ]
 
 [dependencies]
-ssql-macro = { version = "0.1.4", path = "ssql-macro" }
+ssql-macro = { version = "0.2.0", path = "ssql-macro" }
 tiberius = { version = "0.12.2"}
 tokio = { version = "1.37.0", features = ["rt", "net"] }
 tokio-util = { version = "0.7.11", features = ["compat"] }
